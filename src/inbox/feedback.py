@@ -67,8 +67,9 @@ def record_sent(
     row = conn.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,)).fetchone()
     if row is None:
         raise KeyError(f"no draft {draft_id}")
-    sim = edit_similarity(row["draft_text"], sent_text) if row["draft_text"] else None
-    outcome = outcome_for(row["draft_text"], sim)
+    answered = row["route"] in ("reuse", "docs")   # skeletons and holding replies are not drafts to edit
+    sim = edit_similarity(row["draft_text"], sent_text) if row["draft_text"] and answered else None
+    outcome = outcome_for(row["draft_text"] if answered else None, sim)
     local = sent_at.astimezone(ZoneInfo(tz)) if tz else sent_at
     hits = check_outgoing(sent_text, rules, sent_at=local)
     with conn:

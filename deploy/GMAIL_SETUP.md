@@ -50,21 +50,36 @@ python -m inbox.app --firm demo      # http://127.0.0.1:8000
 
 ## Working with it inside Gmail
 
-- **Labels.** Each email gets exactly one: `AI/draft-ready/high`, `/medium` or `/low` (a
-  draft is waiting in the thread), `AI/needs-approval` (a lead must decide, or it was not
-  drafted at all, like a legal threat), `AI/no-answer` (nothing to draft from) or
-  `AI/automated` (auto-replies and newsletters, left alone).
-- **The action list** is a draft in your Drafts folder called "Action list (kept up to
-  date by the support assistant)". It lists promises with their deadlines, things to look
-  up and spikes. Delete a line when it is done; the next check marks it done and rewrites
-  the list. Nobody needs to send it.
-- **Adding context.** Email the support address from itself with a subject starting
-  `Note:` (for example `Note: Heating outage Block C for 3 days`). The body becomes a dated
-  note the next drafts use, gone after 14 days or the days you give. `Policy:` adds a
-  permanent page instead. Only the support address itself can do this.
-- **Onboarding an existing mailbox.** `python -m inbox --firm demo gmail-import --months 12`
-  reads the conversations the team already replied to and turns them into the knowledge
-  base, with dates, per-customer history and the team's tone.
+Every customer email gets a draft in its thread and exactly one label, so every email is
+worked the same way: open it, read the draft, do what the notes in [[double brackets]]
+say, delete them, press Send. Nothing is ever sent without a person.
+
+| Label | What the draft contains | What you do |
+|---|---|---|
+| `AI/draft-ready/high`, `/medium`, `/low` | A reply built from the team's earlier replies or the policy pages | Check, fill any `[[...]]`, send |
+| `AI/needs-approval` | Either a reply with a red `[[NEEDS APPROVAL: ...]]` in place of a promise, or, for legal threats, data requests and the like, an ESCALATE note plus a safe holding reply | Get the approval or pass it on, then send |
+| `AI/no-answer` | A frame: greeting, sign-off, and `[[WRITE YOUR ANSWER: ...]]` with questions you could ask | Write the answer yourself |
+| `AI/skipped` | No draft. The email came from a robot (auto-reply, newsletter, bounce) | Nothing |
+| `AI/context` | No draft. It was a note you emailed to the assistant | Nothing |
+
+Two drafts in the Drafts folder are pages you edit, not emails; nobody sends them:
+
+- **Action list (kept up to date by the support assistant).** Promises with deadlines, things
+  to look up, spikes. Delete a line when it is done. Type a new line at the bottom to add a
+  to-do.
+- **Context for the support assistant (notes and policies).** The dated notes and policy
+  pages the assistant drafts from. Delete a note's block to remove it (a false alarm, an
+  outage that is over). Type a note at the bottom: first line the title (add "for 3 days"
+  to set how long), then the details. To replace a policy page, email this address from
+  itself with the subject `Policy: <same title>` and the new text.
+
+Edits to those two drafts are read once the draft has stayed unchanged for a whole check
+(about 30 to 90 seconds), so nothing half-typed is picked up.
+
+Onboarding an existing mailbox: `python -m inbox --firm demo gmail-import --months 12`
+reads the conversations the team already replied to and turns them into the knowledge
+base, with dates (newest answer wins, changed policies are flagged), per-customer history
+and the team's tone.
 
 ## What it can and cannot do in your account
 

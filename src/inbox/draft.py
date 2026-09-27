@@ -31,6 +31,14 @@ from .textclean import clean, redact
 
 REVIEW_LINE = "[[REVIEW: delete this line once you have read the draft]]"
 
+# Sent only after a person has escalated the email. The firm can set its own wording
+# per language in its config (escalation_reply); this is the fallback.
+HOLDING_REPLY = {
+    "en": "Thank you for your email. We have passed it to the colleague responsible, who will get back to you.",
+    "nl": "Dank voor je e-mail. We hebben hem doorgestuurd naar de verantwoordelijke collega, die contact met je opneemt.",
+    "de": "Danke für deine E-Mail. Wir haben sie an die zuständige Kollegin weitergeleitet, die sich bei dir melden wird.",
+}
+
 # Among past answers this close to the best one, the newest wins: policies change, and
 # an old reply should not beat a new one on a hair of similarity.
 RECENCY_BAND = 0.02
@@ -112,6 +120,7 @@ class Result:
     matches: list[Match] = field(default_factory=list)
     labels: list[str] = field(default_factory=list)
     best_sim: float | None = None
+    skeleton: bool = False   # the draft is a frame for a person to write in, not an answer
 
 
 _EN_WORDS = set(
@@ -445,7 +454,31 @@ class Drafter:
                 f"last on {last['asked_at'][:10]}: \"{last['question'][:100]}\""
             )
 
+    def _skeleton(self, mail: Incoming, res: Result) -> None:
+        """Every email gets a draft, so every email is worked the same way in Gmail.
+        When the tool cannot answer, the draft is a frame: greeting, sign-off, and a
+        placeholder or a safe holding reply, with a note saying what to do. It never
+        contains an invented answer."""
+        lang = language(mail.text)
+        if res.route == "blocked":
+            texts = {**HOLDING_REPLY, **(self.firm.raw.get("escalation_reply") or {})}
+            body = texts.get(lang) or texts["en"]
+            what = ", ".join(sorted({m.rule.replace("_", " ") for m in res.matches})) or "sensitive"
+            who = ", ".join(sorted({m.authority for m in res.matches if m.authority})) or "a team lead"
+            res.inline.insert(0, f"ESCALATE before replying ({what}): pass this to {who}. Do not admit fault, "
+                                 "promise anything or discuss the claim. The holding reply below is safe to send "
+                                 "once it has been passed on")
+        elif res.route == "refused":
+            asks = [n.split(": ", 1)[1] for n in res.notes if n.startswith("worth asking the customer: ")][:2]
+            body = ("[[WRITE YOUR ANSWER: nothing the team wrote before, and no policy page, covers this"
+                    + (f". You could ask: {' / '.join(asks)}" if asks else "") + "]]")
+        else:
+            body = "[[WRITE YOUR ANSWER: the assistant could not draft this one (the model was busy); nothing is lost]]"
+        res.draft, res.skeleton = body, True
+
     def _finish(self, mail: Incoming, res: Result, persist: bool) -> Result:
+        if not res.draft and res.route in ("blocked", "refused", "failed"):
+            self._skeleton(mail, res)
         if res.draft:
             try:
                 translate = self._translator(res.draft)
@@ -506,7 +539,7 @@ def final_label(res: Result) -> str:
     email never sits in two places at once."""
     if res.route == "blocked" or (res.draft and "[[NEEDS APPROVAL" in res.draft):
         return "AI/needs-approval"
-    if res.draft and res.route in ("reuse", "docs"):
+    if res.draft and res.route in ("reuse", "docs") and not res.skeleton:
         return f"AI/draft-ready/{res.confidence or 'low'}"
     return "AI/no-answer"
 

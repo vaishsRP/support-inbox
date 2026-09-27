@@ -16,10 +16,10 @@ QUIET = lambda *a, **k: None  # noqa: E731
 
 
 def replies(g):
-    """Reply drafts, leaving out the live action-list draft."""
-    from inbox.gmail import ACTION_SUBJECT
+    """Reply drafts, leaving out the two page drafts (action list, context)."""
+    from inbox.gmail import ACTION_SUBJECT, CONTEXT_SUBJECT
 
-    return [d for d in g.draftbox.values() if ACTION_SUBJECT not in g.draft_subject(d["id"])]
+    return [d for d in g.draftbox.values() if g.draft_subject(d["id"]) not in (ACTION_SUBJECT, CONTEXT_SUBJECT)]
 
 
 def reply(system, user):
@@ -79,14 +79,17 @@ def test_auto_reply_is_labelled_and_never_drafted(box):
     r = poll(box)
     assert r.skipped == 1 and replies(g) == []
     names = {v: k for k, v in g.labelmap.items()}
-    assert "AI/automated" in [names.get(l) for l in g.msgs[mid]["labelIds"]]
+    assert "AI/skipped" in [names.get(l) for l in g.msgs[mid]["labelIds"]]
 
 
-def test_legal_threat_gets_a_label_but_no_draft(box):
+def test_legal_threat_gets_an_escalation_draft_and_the_approval_label(box):
     g = box[0]
-    g.deliver(frm="a@example.com", subject="bag", body="My bag did not arrive. My lawyer will contact you.")
+    mid = g.deliver(frm="a@example.com", subject="bag", body="My bag did not arrive. My lawyer will contact you.")
     r = poll(box)
-    assert r.blocked == 1 and replies(g) == []
+    [draft] = replies(g)
+    assert r.blocked == 1 and "ESCALATE before replying" in g.draft_body(draft["id"])
+    names = {v: k for k, v in g.labelmap.items()}
+    assert [n for n in (names.get(l) for l in g.msgs[mid]["labelIds"]) if n and n.startswith("AI/")] == ["AI/needs-approval"]
 
 
 def test_what_the_person_sends_is_diffed_tracked_and_learned(box):
@@ -170,10 +173,15 @@ def test_action_list_is_a_draft_and_deleting_a_line_ticks_it_off(box):
     action_draft = _state(conn, "action_draft")
     text = g.draft_body(action_draft)
     assert ACTION_SUBJECT in g.draft_subject(action_draft) and "Someone will call you tomorrow" in text
-    g.edit_draft(action_draft, "\n".join(l for l in text.splitlines() if "Someone will call" not in l))
-    poll(box)
-    assert conn.execute("SELECT status FROM actions").fetchone()[0] == "done"
-    assert "Nothing open" in g.draft_body(_state(conn, "action_draft"))
+    g.edit_draft(action_draft, "\n".join(l for l in text.splitlines() if "Someone will call" not in l)
+                 + "\nCall the airport about Priya's bag\n")
+    poll(box)                                   # seen, but not trusted yet: it may be mid-typing
+    assert conn.execute("SELECT status FROM actions").fetchone()[0] == "open"
+    poll(box)                                   # unchanged for a whole check: now it counts
+    rows = [tuple(r) for r in conn.execute("SELECT kind, what, status FROM actions ORDER BY id")]
+    assert rows[0][2] == "done"
+    assert ("check", "Call the airport about Priya's bag", "open") in rows
+    assert "Call the airport" in g.draft_body(_state(conn, "action_draft"))
 
 
 def test_a_note_emailed_from_the_support_address_becomes_context(box):
@@ -205,3 +213,25 @@ def test_a_vanished_message_does_not_stall_the_watcher(box):
     g.deliver(frm="q@example.com", subject="y", body="My bag did not arrive in Chicago, where is my bag?")
     r = poll(box)
     assert r.drafted == 1
+
+
+def test_context_draft_removes_and_adds_notes(box):
+    from inbox.docs import add_doc
+    from inbox.gmail import _state
+
+    g, mb, d, conn, firm = box
+    with conn:
+        add_doc(conn, "note", "False alarm: lifts broken", "The lifts are broken in Block A.")
+        add_doc(conn, "standing", "Deposits and refunds", "Paid back within 30 days.")
+    poll(box)
+    draft = _state(conn, "context_draft")
+    text = g.draft_body(draft)
+    assert "[N" in text and "False alarm" in text and "[P" in text
+    kept = [l for l in text.splitlines() if "lifts" not in l.lower()]
+    g.edit_draft(draft, "\n".join(kept) + "\nHeating outage Block C for 3 days\nEngineer on site, fixed tomorrow.\n")
+    poll(box)
+    poll(box)
+    live = {r["title"]: r["kind"] for r in conn.execute("SELECT title, kind FROM docs WHERE retired = 0")}
+    assert "False alarm: lifts broken" not in live
+    assert live.get("Heating outage Block C") == "note" and live.get("Deposits and refunds") == "standing"
+    assert "Heating outage Block C" in g.draft_body(_state(conn, "context_draft"))

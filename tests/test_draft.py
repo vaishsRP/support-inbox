@@ -42,7 +42,10 @@ def test_nothing_close_means_no_reply_text_and_a_reason(firm):
     d, _ = drafter(firm, js(questions=["Which airport are you at?"], issue="lost item"))
     res = d.handle(mail("Someone took my knitting needles at security in Oslo"))
     assert res.route == "refused"
-    assert res.draft is None
+    # A frame to write in, never an invented answer: the middle is a placeholder.
+    body = res.draft.split("\n\n", 1)[1]
+    assert body.startswith("[[WRITE YOUR ANSWER: nothing the team wrote before")
+    assert "Which airport are you at?" in body and res.skeleton
     assert "nothing close enough" in res.reason
     assert any("worth asking the customer" in n for n in res.notes)
     assert res.labels == ["AI/no-answer"]
@@ -51,7 +54,9 @@ def test_nothing_close_means_no_reply_text_and_a_reason(firm):
 def test_legal_threat_is_blocked_before_any_model_call(firm):
     d, _ = drafter(firm, "should never be called")
     res = d.handle(mail("My bag did not arrive, my lawyer will hear about this"))
-    assert res.route == "blocked" and res.draft is None
+    assert res.route == "blocked" and res.labels == ["AI/needs-approval"]
+    assert "ESCALATE before replying (legal threat): pass this to legal" in res.draft
+    assert "passed it to the colleague responsible" in res.draft   # the firm's holding reply, not model text
     assert "legal" in res.reason
     assert d.model.calls == []
 
