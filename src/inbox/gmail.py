@@ -244,6 +244,11 @@ class Mailbox:
             if "404" in str(e) or "notFound" in str(e):
                 return None
             raise
+        # Found live: after a draft is sent, Gmail still answers for its old draft id, with
+        # the sent message. Only a message still labelled DRAFT is a draft.
+        labels = r["message"].get("labelIds")
+        if labels is not None and "DRAFT" not in labels:
+            return None
         return parse(base64.urlsafe_b64decode(r["message"]["raw"])).raw_body
 
 

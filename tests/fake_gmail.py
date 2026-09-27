@@ -27,6 +27,7 @@ class FakeGmail:
         self.me = me
         self.msgs: dict[str, dict] = {}
         self.draftbox: dict[str, dict] = {}
+        self.sent_drafts: dict[str, dict] = {}
         self.labelmap = {"INBOX": "INBOX", "SENT": "SENT", "DRAFT": "DRAFT"}
         self.hid = 100
         self._ids = itertools.count(1)
@@ -57,6 +58,7 @@ class FakeGmail:
     def human_sends(self, draft_id: str, text: str | None = None) -> str:
         """What a person does in Gmail: edit the draft (optionally) and press send."""
         d = self.draftbox.pop(draft_id)
+        self.sent_drafts[draft_id] = d          # Gmail still answers for a sent draft's id
         raw = base64.urlsafe_b64decode(d["message"]["raw"])
         from email import message_from_bytes, policy
 
@@ -190,9 +192,11 @@ class _Drafts:
 
     def get(self, userId, id, format="raw"):
         def run():
+            if id in self.g.sent_drafts:          # like Gmail: the sent message, no DRAFT label
+                return {"id": id, "message": dict(self.g.sent_drafts[id]["message"], labelIds=["SENT"])}
             if id not in self.g.draftbox:
                 raise NotFound()
-            return self.g.draftbox[id]
+            return dict(self.g.draftbox[id], message=dict(self.g.draftbox[id]["message"], labelIds=["DRAFT"]))
         return _Call(run)
 
 
