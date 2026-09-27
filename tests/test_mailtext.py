@@ -130,3 +130,9 @@ def test_dutch_signoff_is_replaced_with_the_firms():
     style = {"nl": {"greeting_named": "Hoi {name},", "greeting": "Hoi,", "signoff": "Groet,\nHet Harbourbrook-team"}}
     out = format_reply("Hoi [[name]], je kunt de sleutelkluis gebruiken. Groet, het Harbourbrook-team", style, "Sanne", "nl")
     assert out == "Hoi Sanne,\n\nJe kunt de sleutelkluis gebruiken.\n\nGroet,\nHet Harbourbrook-team"
+
+
+def test_one_shared_word_does_not_make_english_dutch():
+    # Found live: "u" is Dutch for "you" and chat English for "you".
+    assert language("still no deposit?? im suing u") == "en"
+    assert language("Hoi, waar is mijn borg? Ik ben al 6 weken weg.") == "nl"

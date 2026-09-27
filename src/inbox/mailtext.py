@@ -276,15 +276,21 @@ _NL = set("de het een en ik je jij u mijn niet wat hoe waar wanneer kan kunnen i
 _DE = set("der die das und ich du sie mein nicht was wie wo wann kann können ist sind von für mit auf dass hallo danke bitte".split())
 
 
+_EN = set("the a an and or to of in on for is are was were be it this that you your we my me not no can "
+           "could would will with at from have has had do does did but so if please thanks what when where why "
+           "how just still get got i im i'm it's don't back".split())
+
+
 def language(text: str) -> str:
-    words = re.findall(r"[a-zà-ÿß]+", (text or "").lower())
-    if len(words) < 3:
-        return "en"
-    nl = sum(w in _NL for w in words) / len(words)
-    de = sum(w in _DE for w in words) / len(words)
-    if max(nl, de) < 0.12:
-        return "en"
-    return "nl" if nl >= de else "de"
+    """English unless there is clear evidence otherwise: at least two Dutch or German
+    words, and more of them than English ones. One shared word ('u' is Dutch for 'you'
+    and chat English for 'you') is not evidence."""
+    words = re.findall(r"[a-zà-ÿß']+", (text or "").lower())
+    en = sum(w in _EN for w in words)
+    nl = len({w for w in words if w in _NL})
+    de = len({w for w in words if w in _DE})
+    best, lang = max((nl, "nl"), (de, "de"))
+    return lang if best >= 2 and best > en else "en"
 
 
 _GREETING = re.compile(
