@@ -1,0 +1,24 @@
+# Secrets. Never committed.
+.env
+.env.*
+!.env.example
+kaggle.json
+credentials.json
+token.json
+
+# Data: downloaded or generated, never committed (dataset licence, customer privacy)
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
