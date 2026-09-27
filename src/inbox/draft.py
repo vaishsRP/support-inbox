@@ -1,0 +1,375 @@
+"""Steps 4 to 6: turn one incoming mail into a draft, or a refusal with a reason.
+
+Routes, in order:
+  blocked  an incoming rule matched (legal threat, data request, ...): no draft at all
+  reuse    a past question is close enough: adapt its approved answer
+  docs     a document or dated note is close enough: draft from it and cite it
+  refused  nothing close: no reply text, but pointers and questions for the agent
+  failed   the model was unavailable or returned garbage: no draft, stated reason
+
+Whatever the route, the outgoing rules then replace any commitment beyond authority
+with a placeholder, and the draft opens with a review line. Nothing here sends.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import sqlite3
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
+
+from . import actions
+from .config import Firm
+from .docs import DocHit, DocIndex
+from .embed import encode
+from .llm import BadOutput, ChatModel, ModelUnavailable, chat_json
+from .retrieve import AnswerIndex, Hit
+from .rules import Match, Rule, apply_placeholders, check_incoming, sentences
+from .textclean import clean, redact
+
+REVIEW_LINE = "[[REVIEW: delete this line once you have read the draft]]"
+
+
+@dataclass
+class Thresholds:
+    """Cosine similarity cut-offs. Set from hand-labelled pairs (step 3); until then
+    the firm config marks them provisional and the report says so."""
+
+    reuse: float
+    docs: float
+    high: float
+    medium: float
+    provisional: bool = True
+
+    @classmethod
+    def from_firm(cls, firm: Firm) -> "Thresholds":
+        t = firm.raw.get("thresholds", {})
+        return cls(
+            reuse=float(t.get("reuse", 0.93)),
+            docs=float(t.get("docs", 0.86)),
+            high=float(t.get("high", 0.96)),
+            medium=float(t.get("medium", 0.94)),
+            provisional=bool(t.get("provisional", True)),
+        )
+
+    def band(self, sim: float) -> str:
+        return "high" if sim >= self.high else "medium" if sim >= self.medium else "low"
+
+
+@dataclass
+class Incoming:
+    msg_id: str
+    thread_id: str
+    customer_id: str
+    text: str
+    received_at: datetime
+    # Earlier messages in this thread, oldest first: ("customer" | "firm", text)
+    thread: list[tuple[str, str]] = field(default_factory=list)
+
+
+@dataclass
+class Result:
+    route: str
+    confidence: str | None
+    draft: str | None
+    reason: str
+    notes: list[str] = field(default_factory=list)
+    sources: list[dict] = field(default_factory=list)
+    matches: list[Match] = field(default_factory=list)
+    labels: list[str] = field(default_factory=list)
+    best_sim: float | None = None
+
+
+_EN_WORDS = set(
+    "the a an and or to of in on for is are was were be been it this that you your we our i my me "
+    "not no can could would will with at from have has had do does did but so if please thanks thank "
+    "what when where why how just get got im i'm it's don't".split()
+)
+
+
+def looks_english(text: str) -> bool:
+    words = re.findall(r"[a-zA-Z']+", text.lower())
+    if len(words) < 4:
+        return True
+    return sum(w in _EN_WORDS for w in words) / len(words) >= 0.12
+
+
+# ---- Prompts ---------------------------------------------------------------------
+
+REUSE_SYSTEM = """You adapt an approved customer-support reply so it answers a new customer message.
+
+Rules:
+- Use only facts found in the APPROVED REPLY, the NEW MESSAGE or the THREAD. Never invent policies, amounts, dates, names, phone numbers or links.
+- Keep the approved reply's wording and tone. Change only what the new message requires.
+- Double-bracket placeholders like [[name]] stand for another customer's details that were removed. Fill one only if the new message gives that detail; otherwise leave the placeholder exactly as it is.
+- If the answer depends on something only the company's own systems know (payment, order, booking, account or delivery status), put [[CHECK: what the agent should look up]] where that fact would go.
+- If the new message asks something the approved reply does not answer, do not answer it. List it under "uncovered".
+- Do not promise refunds, money, compensation, exceptions, escalations or deadlines beyond what the approved reply already says.
+- Write in the language of the new message. Keep it about as short as the approved reply. No signature.
+- Set "fits" to false if the approved reply is about a different problem than the new message.
+
+Return JSON only: {"fits": true|false, "reply": "...", "uncovered": ["..."]}"""
+
+DOCS_SYSTEM = """You write a short customer-support reply using only the SOURCES given.
+
+Rules:
+- Every fact must come from the SOURCES. After each sentence that uses a source, add [source: <title>].
+- If the SOURCES do not answer the message, set "fits" to false and leave "reply" empty.
+- If the answer depends on something only the company's systems know, write [[CHECK: what to look up]] instead of guessing.
+- Parts of the message the sources do not answer go under "uncovered", not in the reply.
+- Do not promise refunds, money, compensation, exceptions, escalations or deadlines.
+- Write in the language of the message. Two to four sentences. No signature.
+
+Return JSON only: {"fits": true|false, "reply": "...", "uncovered": ["..."]}"""
+
+REFUSE_SYSTEM = """A customer-support message has no approved answer and no document that covers it. Do NOT write a reply to the customer.
+
+Help the agent instead: give up to three short questions the agent could ask the customer to pin the problem down, and name the kind of issue in a few words.
+
+Return JSON only: {"questions": ["..."], "issue": "..."}"""
+
+TRANSLATE_SYSTEM = """Translate each numbered sentence to English, literally. Keep [[...]] placeholders unchanged.
+Return JSON only: {"english": ["...", "..."]} with exactly one entry per input sentence, in order."""
+
+
+def _thread_block(thread: list[tuple[str, str]]) -> str:
+    if not thread:
+        return "(none)"
+    return "\n".join(f"{who.upper()}: {text}" for who, text in thread[-6:])
+
+
+# ---- The drafter -----------------------------------------------------------------
+
+
+class Drafter:
+    def __init__(
+        self,
+        firm: Firm,
+        conn: sqlite3.Connection,
+        model: ChatModel,
+        rules: list[Rule],
+        answers: AnswerIndex | None = None,
+        thresholds: Thresholds | None = None,
+    ):
+        self.firm = firm
+        self.conn = conn
+        self.model = model
+        self.rules = rules
+        self.answers = answers if answers is not None else AnswerIndex(firm)
+        self.t = thresholds or Thresholds.from_firm(firm)
+        self._doc_index: DocIndex | None = None
+        self._doc_index_day: str | None = None
+
+    def _docs(self, at: datetime) -> DocIndex:
+        day = at.date().isoformat()
+        if self._doc_index is None or self._doc_index_day != day:
+            self._doc_index = DocIndex(self.conn, at=at)
+            self._doc_index_day = day
+        return self._doc_index
+
+    def refresh_docs(self) -> None:
+        self._doc_index = None
+
+    # -- main entry --
+    def handle(self, mail: Incoming, persist: bool = True) -> Result:
+        question = clean(mail.text)
+        blocked = [m for m in check_incoming(question, self.rules) if m.action == "block"]
+        if blocked:
+            who = sorted({m.authority for m in blocked if m.authority})
+            res = Result(
+                route="blocked",
+                confidence=None,
+                draft=None,
+                reason=f"{', '.join(m.rule.replace('_', ' ') for m in blocked)}: route to {', '.join(who) or 'a lead'}",
+                matches=blocked,
+                labels=["AI/needs-authority"],
+            )
+            return self._finish(mail, res, persist)
+
+        vec = encode([question])[0]
+        sent_here = [redact(clean(t), self.firm.public_numbers) for who, t in mail.thread if who == "firm"]
+        hits = self.answers.search(vec=vec, k=3, before=mail.received_at, exclude_answers=sent_here)
+        doc_hits = self._docs(mail.received_at).search(vec=vec, k=3)
+        best = hits[0].sim if hits else 0.0
+        best_doc = doc_hits[0].sim if doc_hits else 0.0
+
+        try:
+            if hits and best >= self.t.reuse:
+                res = self._reuse(mail, question, hits[0], hits)
+                if res is None and best_doc >= self.t.docs:
+                    res = self._from_docs(mail, question, doc_hits)
+            elif best_doc >= self.t.docs:
+                res = self._from_docs(mail, question, doc_hits)
+            else:
+                res = None
+            if res is None:
+                res = self._refuse(mail, question, hits, doc_hits, best, best_doc)
+        except ModelUnavailable as e:
+            res = Result("failed", None, None, f"model unavailable: {e}", labels=["AI/no-answer"])
+        except BadOutput as e:
+            res = Result("failed", None, None, f"generation failed: {e}", labels=["AI/no-answer"])
+        res.best_sim = best
+        self._add_history_note(mail, res)
+        return self._finish(mail, res, persist)
+
+    # -- routes --
+    def _reuse(self, mail: Incoming, question: str, top: Hit, hits: list[Hit]) -> Result | None:
+        user = (
+            f"NEW MESSAGE:\n{question}\n\nTHREAD SO FAR:\n{_thread_block(mail.thread)}\n\n"
+            f"APPROVED REPLY (to a similar earlier message: \"{top.question}\"):\n{top.answer}"
+        )
+        out = chat_json(self.model, REUSE_SYSTEM, user)
+        if not out.get("fits", True) or not str(out.get("reply", "")).strip():
+            return None
+        uncovered = [u for u in out.get("uncovered", []) if str(u).strip()]
+        confidence = self.t.band(top.sim)
+        notes = [f"closest past answer is from {top.asked_at[:10]} (similarity {top.sim:.2f})"]
+        if uncovered:
+            confidence = "medium" if confidence == "high" else confidence
+            notes += [f"not covered by the past answer: {u}" for u in uncovered]
+        return Result(
+            route="reuse",
+            confidence=confidence,
+            draft=str(out["reply"]).strip(),
+            reason="adapted a past approved answer",
+            notes=notes,
+            sources=[{"type": "past_answer", "pair_id": h.pair_id, "sim": round(h.sim, 4)} for h in hits],
+            labels=["AI/draft-ready"],
+        )
+
+    def _from_docs(self, mail: Incoming, question: str, doc_hits: list[DocHit]) -> Result | None:
+        src = "\n\n".join(
+            f"[{h.title}] ({'dated note, ' + h.created_at[:10] if h.kind == 'note' else 'standing document'})\n{h.text}"
+            for h in doc_hits
+        )
+        user = f"MESSAGE:\n{question}\n\nTHREAD SO FAR:\n{_thread_block(mail.thread)}\n\nSOURCES:\n{src}"
+        out = chat_json(self.model, DOCS_SYSTEM, user)
+        if not out.get("fits", True) or not str(out.get("reply", "")).strip():
+            return None
+        uncovered = [u for u in out.get("uncovered", []) if str(u).strip()]
+        notes = [f"drafted from documents, not a past answer; check the cited sources"]
+        notes += [f"not covered by the documents: {u}" for u in uncovered]
+        conf = "medium" if doc_hits[0].sim >= self.t.high and not uncovered else "low"
+        return Result(
+            route="docs",
+            confidence=conf,
+            draft=str(out["reply"]).strip(),
+            reason="drafted from documents and notes",
+            notes=notes,
+            sources=[{"type": h.kind, "doc_id": h.doc_id, "title": h.title, "sim": round(h.sim, 4)} for h in doc_hits],
+            labels=["AI/draft-ready"],
+        )
+
+    def _refuse(self, mail, question, hits, doc_hits, best, best_doc) -> Result:
+        reason = (
+            f"nothing close enough: best past answer {best:.2f} (needs {self.t.reuse:.2f}), "
+            f"best document {best_doc:.2f} (needs {self.t.docs:.2f})"
+            if hits or doc_hits
+            else "no past answers or documents to draw on"
+        )
+        notes = []
+        for h in hits[:3]:
+            notes.append(f"related past thread {h.thread_id} ({h.sim:.2f}): \"{h.question[:120]}\"")
+        for d in doc_hits[:2]:
+            notes.append(f"related document \"{d.title}\" ({d.sim:.2f})")
+        try:
+            out = chat_json(self.model, REFUSE_SYSTEM, f"MESSAGE:\n{question}\n\nTHREAD SO FAR:\n{_thread_block(mail.thread)}", max_tokens=300)
+            if out.get("issue"):
+                notes.append(f"looks like: {out['issue']}")
+            notes += [f"worth asking the customer: {q}" for q in out.get("questions", [])[:3] if str(q).strip()]
+        except (ModelUnavailable, BadOutput):
+            notes.append("could not suggest questions: model unavailable")
+        return Result(
+            route="refused",
+            confidence=None,
+            draft=None,
+            reason=reason,
+            notes=notes,
+            sources=[{"type": "past_answer", "pair_id": h.pair_id, "sim": round(h.sim, 4)} for h in hits],
+            labels=["AI/no-answer"],
+        )
+
+    # -- shared finishing --
+    def _translator(self, text: str):
+        """For non-English drafts: translate sentence by sentence so the English
+        rules can see commitments, and map hits back to the original sentences."""
+        if looks_english(text):
+            return None
+        sents = sentences(text)
+        numbered = "\n".join(f"{i + 1}. {s}" for i, s in enumerate(sents))
+        out = chat_json(self.model, TRANSLATE_SYSTEM, numbered, max_tokens=900)
+        english = out.get("english", [])
+        if len(english) != len(sents):
+            raise BadOutput("translation did not line up with the sentences")
+        table = dict(zip(sents, english))
+        return lambda s: table.get(s, s)
+
+    def _add_history_note(self, mail: Incoming, res: Result) -> None:
+        past = actions.customer_history(self.conn, mail.customer_id, before=mail.received_at.isoformat(), limit=3)
+        past = [p for p in past if p["thread_id"] != mail.thread_id]
+        if past:
+            last = past[0]
+            res.notes.append(
+                f"this customer wrote {len(past)}{'+' if len(past) == 3 else ''} time(s) before; "
+                f"last on {last['asked_at'][:10]}: \"{last['question'][:100]}\""
+            )
+
+    def _finish(self, mail: Incoming, res: Result, persist: bool) -> Result:
+        if res.draft:
+            try:
+                translate = self._translator(res.draft)
+            except (ModelUnavailable, BadOutput) as e:
+                # Cannot check commitments in a language we cannot read: hold the draft.
+                res.notes.append(f"draft not in English and could not be translated for the commitment check ({e})")
+                res.route, res.draft, res.confidence = "failed", None, None
+                res.reason = "commitment check impossible without a translation"
+                res.labels = ["AI/no-answer"]
+                translate = None
+            if res.draft:
+                body, matches = apply_placeholders(res.draft, self.rules, translate=translate)
+                res.matches += matches
+                if any(m.action == "placeholder" for m in matches):
+                    res.labels.append("AI/needs-authority")
+                    res.notes.append("commitments were replaced with NEEDS AUTHORITY placeholders")
+                for m in matches:
+                    if m.action == "track":
+                        res.notes.append(f"this draft promises something that will be tracked once sent: \"{m.sentence}\"")
+                notes = "".join(f"\n[[AGENT NOTE: {n}]]" for n in res.notes)
+                res.draft = f"{REVIEW_LINE}\n{body}\n{notes}".rstrip()
+        if res.confidence:
+            res.labels.append(f"AI/confidence-{res.confidence}")
+        if persist:
+            self._persist(mail, res)
+        return res
+
+    def _persist(self, mail: Incoming, res: Result) -> None:
+        with self.conn:
+            self.conn.execute(
+                """INSERT INTO drafts (thread_id, customer_msg_id, customer_id, created_at, route, confidence,
+                   reason, draft_text, source_pair_id, sources)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    mail.thread_id,
+                    mail.msg_id,
+                    mail.customer_id,
+                    mail.received_at.isoformat(),
+                    res.route,
+                    res.confidence,
+                    res.reason + ("" if not res.notes or res.draft else " | " + " | ".join(res.notes)),
+                    res.draft,
+                    next((s["pair_id"] for s in res.sources if s.get("type") == "past_answer"), None),
+                    json.dumps(res.sources),
+                ),
+            )
+            if res.draft:
+                actions.record_checks(self.conn, res.draft, customer_id=mail.customer_id, thread_id=mail.thread_id)
+
+
+def result_json(res: Result) -> dict:
+    d = asdict(res)
+    d["matches"] = [
+        {"rule": m.rule, "action": m.action, "sentence": m.sentence, "due": m.due.isoformat() if m.due else None}
+        for m in res.matches
+    ]
+    return d
