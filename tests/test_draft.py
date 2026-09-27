@@ -226,3 +226,17 @@ def test_attachment_is_flagged_in_the_draft(firm):
     m = mail("My bag did not arrive in Chicago, where is my bag?")
     m.attachments = ["tag.jpg"]
     assert "the customer attached tag.jpg; it was not read" in d.handle(m).draft
+
+
+def test_iban_never_reaches_the_model_and_the_agent_is_told(firm):
+    d, _ = drafter(firm, js(fits=True, reply="Please file a report with our Baggage team.", uncovered=[]))
+    res = d.handle(mail("My bag did not arrive in Chicago, where is my bag? Refund to NL91ABNA0417164300 please"))
+    assert all("NL91ABNA0417164300" not in u for _, u in d.model.calls)
+    assert "bank account number (IBAN); it was hidden from the assistant" in res.draft
+
+
+def test_house_rules_reach_every_prompt(firm):
+    firm.raw["guidance"] = ["Never promise a date for a refund."]
+    d, _ = drafter(firm, js(fits=True, reply="Please file a report with our Baggage team.", uncovered=[]))
+    d.handle(mail("My bag did not arrive in Chicago, where is my bag?"))
+    assert "HOUSE RULES" in d.model.calls[0][0] and "Never promise a date for a refund." in d.model.calls[0][0]

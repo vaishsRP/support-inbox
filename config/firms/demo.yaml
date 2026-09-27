@@ -15,6 +15,13 @@ public_numbers:
 
 docs_dir: demo/corpus/docs
 
+# House rules in plain language. Every draft follows them; edit freely.
+guidance:
+  - In Dutch, address students with "je", never "u".
+  - Never give a date for a deposit refund beyond what the policy says; refunds are decided by finance.
+  - Never mention another tenant by name or room number.
+  - Keep replies under 120 words.
+
 # How replies are framed. The drafter writes only the body; greeting and sign-off come
 # from here, in the customer's language, with the name from how they signed off.
 email_style:

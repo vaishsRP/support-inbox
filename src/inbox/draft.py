@@ -27,7 +27,7 @@ from .llm import BadOutput, ChatModel, ModelUnavailable, chat_json
 from .mailtext import customer_name, format_reply, language
 from .retrieve import AnswerIndex, Hit
 from .rules import Match, Rule, apply_placeholders, check_incoming, sentences
-from .textclean import clean, redact
+from .textclean import clean, mask_sensitive, redact
 
 REVIEW_LINE = "[[REVIEW: delete this line once you have read the draft]]"
 
@@ -215,6 +215,10 @@ class Drafter:
         self.run: str | None = None   # set by a replay so its drafts stay apart from live ones
         self.style = firm.raw.get("email_style")   # None for tweet corpora: no greeting or sign-off
         framing = BODY_ONLY if self.style else WITH_FRAME
+        rules = [str(g).strip() for g in (firm.raw.get("guidance") or []) if str(g).strip()]
+        if rules:
+            # The team's own house rules, in plain language, followed in every draft.
+            framing += "\n- HOUSE RULES from the team, always follow them:\n" + "\n".join(f"  - {g}" for g in rules)
         self.reuse_system = REUSE_SYSTEM.replace("{framing}", framing)
         self.docs_system = DOCS_SYSTEM.replace("{framing}", framing)
 
@@ -230,6 +234,10 @@ class Drafter:
 
     # -- main entry --
     def handle(self, mail: Incoming, persist: bool = True) -> Result:
+        # Payment details are hidden before anything else sees the text, the model included.
+        masked, sensitive = mask_sensitive(mail.text)
+        if sensitive:
+            mail.text = masked
         question = clean(mail.text)
         blocked = [m for m in check_incoming(question, self.rules) if m.action == "block"]
         if blocked:
@@ -279,6 +287,9 @@ class Drafter:
             res = Result("failed", None, None, f"generation failed: {e}", labels=["AI/no-answer"])
         res.best_sim = best
         self._add_history_note(mail, res)
+        if sensitive:
+            res.inline.append(f"the customer sent a {' and a '.join(sensitive)}; it was hidden from the assistant. "
+                              "Take it from their email if you need it, and never repeat it in the reply")
         return self._finish(mail, res, persist)
 
     # -- routes --

@@ -61,3 +61,13 @@ def test_answers_keep_their_links_and_links_survive_redaction():
     out = redact(clean(raw, keep_urls=True))
     assert "https://t.co/XK4J2PAB12" in out and "https://t.co/XK4J2P" in out
     assert clean(raw) == "Here's the workaround until it's fixed: [link] and [link]"
+
+
+def test_bank_and_card_numbers_are_hidden():
+    from inbox.textclean import mask_sensitive
+
+    text, found = mask_sensitive("Please refund to NL91 ABNA 0417 1643 00, or card 4111 1111 1111 1111. Room 214.")
+    assert "0417" not in text and "4111" not in text and "Room 214" in text
+    assert found == ["bank account number (IBAN)", "card number"]
+    # Ordinary long numbers (order numbers, phone numbers) are left alone.
+    assert mask_sensitive("Order 1234 5678 9012 3456 7")[1] == []

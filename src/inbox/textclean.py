@@ -103,5 +103,40 @@ def redact(text: str, public_numbers: list[str] | tuple[str, ...] = ()) -> str:
     return text
 
 
+_IBAN = re.compile(r"\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){2,7}(?:[ ]?[A-Z0-9]{1,3})?\b")
+_CARD = re.compile(r"\b(?:\d[ -]?){13,19}\b")
+
+
+def _luhn(digits: str) -> bool:
+    total, alt = 0, False
+    for ch in reversed(digits):
+        d = int(ch)
+        if alt:
+            d = d * 2 - 9 if d > 4 else d * 2
+        total, alt = total + d, not alt
+    return total % 10 == 0
+
+
+def mask_sensitive(text: str) -> tuple[str, list[str]]:
+    """Bank account and card numbers never reach the language model. Returns the masked
+    text and what was found, so the draft can tell the agent."""
+    found = []
+
+    def iban(m):
+        found.append("bank account number (IBAN)")
+        return "[[bank account number]]"
+
+    def card(m):
+        digits = re.sub(r"\D", "", m.group(0))
+        if 13 <= len(digits) <= 19 and _luhn(digits):
+            found.append("card number")
+            return "[[card number]]"
+        return m.group(0)
+
+    text = _IBAN.sub(iban, text or "")
+    text = _CARD.sub(card, text)
+    return text, sorted(set(found))
+
+
 def placeholders(text: str) -> list[str]:
     return PLACEHOLDER_RE.findall(text or "")
