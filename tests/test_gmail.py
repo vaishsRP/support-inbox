@@ -243,3 +243,54 @@ def test_add_line_survives_gmail_rewrapping():
     assert _below("x\nADD A TO-DO BELOW THIS LINE (one per\nline)\nCall Lina\n", ADD_TODO) == "Call Lina"
     assert _below("x\nADD A TO-DO BELOW THIS LINE (one per line) Call Lina", ADD_TODO) == "Call Lina"
     assert _below("x\nADD A TO-DO BELOW THIS LINE (one per line)\n", ADD_TODO) == ""
+
+
+def _page(g, conn, key):
+    from inbox.gmail import _state
+
+    return _state(conn, f"{key}_draft")
+
+
+def test_a_copy_left_open_cannot_close_rows_it_never_saw(box):
+    from inbox import actions
+
+    g, mb, d, conn, firm = box
+    with conn:
+        actions.add(conn, "check", "look up Priya's booking")
+    poll(box)
+    stale = g.draft_body(_page(g, conn, "action"))          # the person opens the page here...
+    with conn:
+        actions.add(conn, "check", "call the airport")      # ...a new to-do arrives and the page is rewritten...
+    poll(box)
+    g.edit_draft(_page(g, conn, "action"), stale + "\nbook the courier\n")   # ...then their open copy saves over it
+    poll(box)
+    poll(box)
+    rows = {r["what"]: r["status"] for r in conn.execute("SELECT what, status FROM actions")}
+    assert rows["call the airport"] == "open"               # not closed: they never saw it
+    assert rows["look up Priya's booking"] == "open"
+    assert rows["book the courier"] == "open"
+
+
+def test_the_same_to_do_read_twice_is_added_once(box):
+    g, mb, d, conn, firm = box
+    poll(box)
+    for _ in range(2):
+        g.edit_draft(_page(g, conn, "action"), g.draft_body(_page(g, conn, "action")) + "\ncall Lina\n")
+        poll(box)
+        poll(box)
+    assert conn.execute("SELECT COUNT(*) FROM actions WHERE what = 'call Lina'").fetchone()[0] == 1
+
+
+def test_a_page_sent_by_mistake_is_read_and_replaced(box):
+    from inbox.gmail import ACTION_SUBJECT
+
+    g, mb, d, conn, firm = box
+    poll(box)
+    old = _page(g, conn, "action")
+    g.edit_draft(old, g.draft_body(old) + "\nrenew the fire certificate\n")
+    g.human_sends(old)                                      # oops: pressed Send
+    poll(box)
+    assert conn.execute("SELECT status FROM actions WHERE what = 'renew the fire certificate'").fetchone()[0] == "open"
+    new = _page(g, conn, "action")
+    assert new != old and g.draft_subject(new) == ACTION_SUBJECT
+    assert "renew the fire certificate" in g.draft_body(new)

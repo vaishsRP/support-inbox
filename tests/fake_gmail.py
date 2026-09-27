@@ -63,14 +63,20 @@ class FakeGmail:
         m = message_from_bytes(raw, policy=policy.default)
         if text is not None:
             m.set_content(text)
-        mid = f"s{next(self._ids)}"
-        return self._store(mid, m, d["message"]["threadId"], ["SENT"])
+        # Like Gmail: the sent message keeps the draft's message id.
+        mid = d["message"].get("id") or f"s{next(self._ids)}"
+        return self._store(mid, m, d["message"].get("threadId") or f"t{mid}", ["SENT"])
 
     def draft_body(self, draft_id: str) -> str:
         from email import message_from_bytes, policy
 
         raw = base64.urlsafe_b64decode(self.draftbox[draft_id]["message"]["raw"])
         return message_from_bytes(raw, policy=policy.default).get_content()
+
+    def _subject(self, raw: str) -> str:
+        from email import message_from_bytes, policy
+
+        return str(message_from_bytes(base64.urlsafe_b64decode(raw), policy=policy.default)["Subject"])
 
     def draft_subject(self, draft_id: str) -> str:
         from email import message_from_bytes, policy
@@ -113,6 +119,9 @@ class _Messages:
         def run():
             if "in:sent" in q:
                 found = [m for m in self.g.msgs.values() if "SENT" in m["labelIds"]]
+                if 'subject:"' in q:
+                    want = q.split('subject:"', 1)[1].split('"', 1)[0]
+                    found = [m for m in found if want in self.g._subject(m["raw"])]
             else:
                 found = [self.g.msgs[m] for _, m in self.g.added]
             found = sorted(found, key=lambda m: int(m["internalDate"]), reverse=True)   # newest first, like Gmail

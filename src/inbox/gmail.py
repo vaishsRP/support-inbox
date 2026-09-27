@@ -18,7 +18,7 @@ import re
 import sqlite3
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from pathlib import Path
 
@@ -209,6 +209,33 @@ class Mailbox:
             return drafts.update(userId="me", id=draft_id, body=payload).execute()["id"]
         return drafts.create(userId="me", body=payload).execute()["id"]
 
+    def draft_message_id(self, draft_id: str) -> str | None:
+        try:
+            r = self._svc.users().drafts().get(userId="me", id=draft_id, format="minimal").execute()
+        except Exception as e:
+            if _gone(e):
+                return None
+            raise
+        return r.get("message", {}).get("id")
+
+    def sent_copy(self, message_id: str | None, subject: str) -> str | None:
+        """The text of a page draft that was sent: by its message id if Gmail kept it,
+        else the newest sent message with that subject from the last day."""
+        users = self._svc.users()
+        if message_id:
+            try:
+                r = users.messages().get(userId="me", id=message_id, format="raw").execute()
+                if "SENT" in r.get("labelIds", []):
+                    return parse(base64.urlsafe_b64decode(r["raw"])).raw_body
+            except Exception as e:
+                if not _gone(e):
+                    raise
+        found = users.messages().list(userId="me", q=f'in:sent subject:"{subject}" newer_than:1d', maxResults=1).execute()
+        for m in found.get("messages", []):
+            r = users.messages().get(userId="me", id=m["id"], format="raw").execute()
+            return parse(base64.urlsafe_b64decode(r["raw"])).raw_body
+        return None
+
     def draft_text(self, draft_id: str) -> str | None:
         """The draft's current body, or None if it no longer exists (sent or deleted)."""
         try:
@@ -395,50 +422,89 @@ def add_context_from_mail(conn, drafter: Drafter, mail: Mail, note: re.Match, re
 # Edits are read only once the draft has stayed the same for a whole check, so text a
 # person is still typing is never picked up half-finished.
 
-ACTION_SUBJECT = "Action list (kept up to date by the support assistant)"
-CONTEXT_SUBJECT = "Context for the support assistant (notes and policies)"
+ACTION_SUBJECT = "To-do list"
+CONTEXT_SUBJECT = "Context and policies"
 _ROW_ID = re.compile(r"#(\d+)\b")
 _DOC_ID = re.compile(r"\[(N|P)(\d+)\]")
-ADD_TODO = "ADD A TO-DO BELOW THIS LINE (one per line)"
-ADD_NOTE = "ADD A NOTE BELOW THIS LINE (first line is the title, add \"for 3 days\" to it to set how long; then the details)"
+_VERSION = re.compile(r"\bVersion (\d+)\b")
+ADD_TODO = "ADD A TO-DO BELOW THIS LINE"
+ADD_NOTE = "ADD A NOTE BELOW THIS LINE"
+KEEP_VERSIONS = 30
 
 
 def _below(text: str, marker: str) -> str:
     """Whatever a person typed under the add line, however Gmail's editor wrapped it."""
     words = marker.split()
-    for n in (len(words), len(marker.split(" (")[0].split())):   # the full line, else just its start
-        m = re.search(r"\s+".join(map(re.escape, words[:n])), text, re.I)
-        if m:
-            return text[m.end():].strip()
-    return ""
+    m = re.search(r"\s+".join(map(re.escape, words)), text, re.I)
+    if not m:
+        return ""
+    # Older drafts had a note in brackets after the marker: skip it if it is there.
+    rest = re.sub(r"^\s*\([^)]*\)", "", text[m.end():], count=1, flags=re.S)
+    return rest.strip()
 
 
-def _read_page(mb: Mailbox, conn: sqlite3.Connection, key: str, log=print) -> tuple[str | None, str | None, bool]:
-    """(draft id, current text, ready): ready is False while a person may still be typing."""
+def _read_page(mb: Mailbox, conn: sqlite3.Connection, key: str, subject: str, log=print) -> tuple[str | None, str | None, bool]:
+    """(draft id, current text, ready). Ready is False while a person may still be typing.
+
+    If the page was sent by mistake, the sent copy is read instead, so nothing typed into
+    it is lost; a fresh draft is then written."""
     draft_id = _state(conn, f"{key}_draft")
     if not draft_id:
         return None, None, False
     current = mb.draft_text(draft_id)
     if current is None:
-        return None, None, False          # deleted or sent by mistake: a fresh one is made
+        sent = mb.sent_copy(_state(conn, f"{key}_msg"), subject)
+        if sent and _hash(sent) != _state(conn, f"{key}_written"):
+            log(f"[gmail] the {key} page was sent by mistake; reading the sent copy and making a new draft")
+            return None, sent, True
+        return None, None, False
     if _hash(current) == _state(conn, f"{key}_written"):
         return draft_id, current, False   # untouched since we wrote it
     stable = _state(conn, f"{key}_seen") == _hash(current)
     _state(conn, f"{key}_seen", _hash(current))
     if not stable:
-        log(f"[gmail] {key} draft was edited; reading it on the next check if it stays the same")
+        log(f"[gmail] {key} page was edited; reading it on the next check if it stays the same")
     return draft_id, current, stable
 
 
 def _content(text: str) -> str:
-    """The page without its 'Updated ...' line: what decides whether to rewrite it."""
-    return _hash("\n".join(l for l in text.splitlines() if not l.startswith("Updated ")))
+    """The page without its version line: what decides whether to rewrite it."""
+    return _hash("\n".join(l for l in text.splitlines() if not _VERSION.search(l)))
 
 
-def _write_page(mb: Mailbox, conn: sqlite3.Connection, key: str, subject: str, text: str, draft_id: str | None) -> None:
+def _versions(conn, key: str) -> dict:
+    import json
+
+    return json.loads(_state(conn, f"{key}_versions") or "{}")
+
+
+def _base_ids(conn, key: str, current: str) -> list[str]:
+    """The rows the person was looking at when they edited: the version their copy says.
+    A row added after that version is not 'deleted' just because their copy lacks it,
+    which is what happens when a draft is left open while the page is rewritten."""
+    versions = _versions(conn, key)
+    m = _VERSION.search(current or "")
+    if m and m.group(1) in versions:
+        return versions[m.group(1)]
+    return versions[max(versions, key=int)] if versions else []
+
+
+def _write_page(mb: Mailbox, conn: sqlite3.Connection, key: str, subject: str, body: str, ids: list,
+                draft_id: str | None, now: datetime | None = None) -> None:
+    import json
+
+    now = now or datetime.now(timezone.utc)
+    version = int(_state(conn, f"{key}_version") or 0) + 1
+    text = f"Version {version}, updated {now:%a %d %b %H:%M} UTC.\n{body}"
+    versions = _versions(conn, key)
+    versions[str(version)] = [str(i) for i in ids]
+    versions = {k: versions[k] for k in sorted(versions, key=int)[-KEEP_VERSIONS:]}
+    _state(conn, f"{key}_version", str(version))
+    _state(conn, f"{key}_versions", json.dumps(versions))
     _state(conn, f"{key}_content", _content(text))
     draft_id = mb.put_draft(to=mb.me, subject=subject, body=text, draft_id=draft_id)
     _state(conn, f"{key}_draft", draft_id)
+    _state(conn, f"{key}_msg", mb.draft_message_id(draft_id) or "")
     _state(conn, f"{key}_written", _hash(mb.draft_text(draft_id) or text))
 
 
@@ -463,10 +529,7 @@ def action_list_text(conn: sqlite3.Connection, now: datetime | None = None) -> t
             when = r["due_text"] or ""
         return f"#{r['id']}  {r['what']}" + (f"  [{when}]" if when else "") + who(r)
 
-    parts = [
-        f"Updated {now:%a %d %b %H:%M} UTC. Delete a line when it is done: it closes on the next check.",
-        "",
-    ]
+    parts = ["Delete a line when it is done. Type a new to-do under the last line. Never send this draft.", ""]
     for title, kind in (("PROMISES MADE TO CUSTOMERS", "commitment"), ("THINGS TO DO OR LOOK UP", "check"), ("SPIKES", "spike")):
         items = [r for r in rows if r["kind"] == kind]
         if items:
@@ -477,32 +540,42 @@ def action_list_text(conn: sqlite3.Connection, now: datetime | None = None) -> t
     return "\n".join(parts), [r["id"] for r in rows]
 
 
+def _recent_duplicate(conn, sql: str, value: str) -> bool:
+    """A to-do or note identical to one added in the last day: the same edit read twice."""
+    since = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    return conn.execute(sql, (value.lower(), since)).fetchone() is not None
+
+
 def sync_action_list(mb: Mailbox, conn: sqlite3.Connection, log=print) -> int:
     """The team's to-do list as a draft. Deleted lines are marked done; lines typed under
-    the last heading become to-dos. Returns how many rows were closed."""
-    draft_id, current, ready = _read_page(mb, conn, "action", log)
-    written = [int(x) for x in (_state(conn, "action_ids") or "").split(",") if x]
+    the last line become to-dos. Returns how many rows were closed."""
+    draft_id, current, ready = _read_page(mb, conn, "action", ACTION_SUBJECT, log)
     closed = added = 0
     if current is not None and not ready and _hash(current) != _state(conn, "action_written"):
         return 0                          # a person is editing: wait until it settles
     if ready:
+        base = [int(x) for x in _base_ids(conn, "action", current)]
         still_there = {int(x) for x in _ROW_ID.findall(current)}
         with conn:
-            for rid in written:
+            for rid in base:
                 if rid not in still_there:
                     actions.mark_done(conn, rid)
                     closed += 1
             for line in _below(current, ADD_TODO).splitlines():
-                if line.strip():
-                    actions.add(conn, "check", line.strip(), origin="manual")
-                    added += 1
+                what = line.strip(" -*\t")
+                if not what or _recent_duplicate(
+                    conn, "SELECT 1 FROM actions WHERE kind = 'check' AND lower(what) = ? AND created_at > ?", what
+                ):
+                    continue
+                actions.add(conn, "check", what, origin="manual")
+                added += 1
         if closed or added:
-            log(f"[gmail] action list: {closed} ticked off, {added} added")
-    text, ids = action_list_text(conn)
-    if draft_id and not ready and _content(text) == _state(conn, "action_content"):
+            log(f"[gmail] to-do list: {closed} ticked off, {added} added")
+    body, ids = action_list_text(conn)
+    if draft_id and not ready and _content(body) == _state(conn, "action_body"):
         return closed                     # nothing changed: leave the draft alone
-    _write_page(mb, conn, "action", ACTION_SUBJECT, text, draft_id)
-    _state(conn, "action_ids", ",".join(map(str, ids)))
+    _state(conn, "action_body", _content(body))
+    _write_page(mb, conn, "action", ACTION_SUBJECT, body, ids, draft_id)
     return closed
 
 
@@ -514,19 +587,20 @@ def context_text(conn: sqlite3.Connection, now: datetime | None = None) -> tuple
     notes = [d for d in docs if d["kind"] == "note"]
     pages = [d for d in docs if d["kind"] == "standing"]
     parts = [
-        "What the assistant knows besides past emails. Edit this draft to change it; nobody sends it.",
-        "Delete a note (its whole block) to remove it, for example a false alarm. Delete a policy line to stop using that page.",
-        "To replace a policy page, email this address from itself with the subject \"Policy: <same title>\" and the new text.",
+        "What the assistant uses besides past emails. Never send this draft.",
+        "Remove a note or a policy by deleting it. Add a note under the last line: first line the title "
+        "(add \"for 3 days\" to it to set how long, 14 days otherwise), then the details.",
+        "To replace a policy, email this address from itself with the subject \"Policy: <same title>\" and the new text.",
         "",
         "CURRENT NOTES",
     ]
     if notes:
         for d in notes:
             until = datetime.fromisoformat(d["expires_at"]).strftime("%a %d %b")
-            parts += [f"[N{d['id']}] {d['title']} (until {until})", d["body"], ""]
+            parts += [f"[N{d['id']}] {d['title']}, until {until}", d["body"], ""]
     else:
         parts += ["None.", ""]
-    parts.append("POLICY PAGES")
+    parts.append("POLICIES")
     parts += [f"[P{d['id']}] {d['title']}" for d in pages] or ["None."]
     parts += ["", ADD_NOTE, ""]
     ids = [f"N{d['id']}" for d in notes] + [f"P{d['id']}" for d in pages]
@@ -534,19 +608,19 @@ def context_text(conn: sqlite3.Connection, now: datetime | None = None) -> tuple
 
 
 def sync_context(mb: Mailbox, conn: sqlite3.Connection, drafter: Drafter, log=print) -> None:
-    """The context page as a draft: remove notes or policies by deleting them, add a note
-    by typing it at the bottom."""
+    """Context and policies as a draft: remove notes or policies by deleting them, add a
+    note by typing it at the bottom."""
     from .docs import add_doc, retire_doc
 
-    draft_id, current, ready = _read_page(mb, conn, "context", log)
-    written = [x for x in (_state(conn, "context_ids") or "").split(",") if x]
+    draft_id, current, ready = _read_page(mb, conn, "context", CONTEXT_SUBJECT, log)
     if current is not None and not ready and _hash(current) != _state(conn, "context_written"):
         return                            # a person is editing: wait until it settles
     changed = False
     if ready:
+        base = _base_ids(conn, "context", current)
         present = {f"{k}{n}" for k, n in _DOC_ID.findall(current)}
         with conn:
-            for key in written:
+            for key in base:
                 if key not in present:
                     retire_doc(conn, int(key[1:]))
                     changed = True
@@ -555,17 +629,20 @@ def sync_context(mb: Mailbox, conn: sqlite3.Connection, drafter: Drafter, log=pr
                 first, _, rest = new.partition("\n")
                 days = NOTE_DAYS.search(first)
                 title = NOTE_DAYS.sub("", first).strip(" -,:") or "Note"
-                add_doc(conn, "note", title, rest.strip() or title,
-                        expires_in_days=int(days.group(1)) if days else None)
-                changed = True
+                if not _recent_duplicate(
+                    conn, "SELECT 1 FROM docs WHERE kind = 'note' AND lower(title) = ? AND created_at > ?", title
+                ):
+                    add_doc(conn, "note", title, rest.strip() or title,
+                            expires_in_days=int(days.group(1)) if days else None)
+                    changed = True
         if changed:
             drafter.refresh_docs()
-            log("[gmail] context updated from the context draft")
-    text, ids = context_text(conn)
-    if draft_id and not ready and _content(text) == _state(conn, "context_content"):
+            log("[gmail] context updated from the Context and policies draft")
+    body, ids = context_text(conn)
+    if draft_id and not ready and _content(body) == _state(conn, "context_body"):
         return
-    _write_page(mb, conn, "context", CONTEXT_SUBJECT, text, draft_id)
-    _state(conn, "context_ids", ",".join(ids))
+    _state(conn, "context_body", _content(body))
+    _write_page(mb, conn, "context", CONTEXT_SUBJECT, body, ids, draft_id)
 
 
 def digest_draft(mb: Mailbox, conn: sqlite3.Connection, firm: Firm) -> str | None:

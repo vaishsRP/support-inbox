@@ -64,10 +64,10 @@ say, delete them, press Send. Nothing is ever sent without a person.
 
 Two drafts in the Drafts folder are pages you edit, not emails; nobody sends them:
 
-- **Action list (kept up to date by the support assistant).** Promises with deadlines, things
+- **To-do list.** Promises with deadlines, things
   to look up, spikes. Delete a line when it is done. Type a new line at the bottom to add a
   to-do.
-- **Context for the support assistant (notes and policies).** The dated notes and policy
+- **Context and policies.** The dated notes and policy
   pages the assistant drafts from. Delete a note's block to remove it (a false alarm, an
   outage that is over). Type a note at the bottom: first line the title (add "for 3 days"
   to set how long), then the details. To replace a policy page, email this address from
