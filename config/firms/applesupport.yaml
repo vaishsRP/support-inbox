@@ -1,0 +1,16 @@
+# One firm = one config file. This is the seam where a second organisation plugs in.
+# Development stand-in: Apple Support replies from the Customer Support on Twitter
+# dataset (CC BY-NC-SA 4.0). No affiliation with Apple is implied.
+
+firm:
+  name: Apple Support (Twitter corpus stand-in)
+  timezone: America/Los_Angeles
+
+corpus:
+  kind: twcs
+  path: data/raw/twcs/twcs.csv
+  brand_handle: AppleSupport
+
+public_numbers: []
+
+data_dir: data/applesupport

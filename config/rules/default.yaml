@@ -1,0 +1,109 @@
+# Commitment and routing rules. Written to be read and edited by a support manager.
+#
+# Each rule has:
+#   applies_to  incoming (the customer's mail) or outgoing (the draft, and the sent reply)
+#   action      block        - incoming only: no draft at all, route to a person
+#               placeholder  - outgoing: the sentence is removed and replaced with
+#                              [[NEEDS AUTHORITY: ...]] for someone allowed to make it
+#               track        - outgoing: allowed, but becomes a row on the action list
+#   patterns    regular expressions, case-insensitive. Any one matching is a hit.
+#   unless      optional regexes; if one matches the same sentence, the rule does not fire
+#   authority   who can make this call; appears in the placeholder
+#
+# Rules match on the English text. For drafts in other languages the rules also run
+# on an English translation of the draft.
+
+rules:
+  # ---- Incoming: never draft, route to a person -----------------------------------
+  - id: legal_threat
+    applies_to: incoming
+    action: block
+    authority: legal
+    patterns:
+      - '\b(lawyer|attorney|solicitor|lawsuit|legal action|small claims|class action)\b'
+      - '\b(sue|suing)\s+(you|them|the company|\w+)\b'
+  - id: data_request
+    applies_to: incoming
+    action: block
+    authority: privacy officer
+    patterns:
+      - '\b(delete|erase|remove) (all )?(my|our) (personal )?(data|information|details|account)\b'
+      - '\b(GDPR|CCPA|data (subject|access) request|subject access request|right to be forgotten)\b'
+  - id: chargeback
+    applies_to: incoming
+    action: block
+    authority: billing lead
+    patterns:
+      - '\b(charge ?back|dispute (the|this|that) (charge|payment)|reverse the (charge|payment) with my bank)\b'
+  - id: press
+    applies_to: incoming
+    action: block
+    authority: communications
+    patterns:
+      - '\b(journalist|reporter|press (inquiry|enquiry)|media (inquiry|enquiry)|for (a|my) (story|article))\b'
+  - id: safety
+    applies_to: incoming
+    action: block
+    authority: duty manager
+    patterns:
+      - '\b(kill myself|suicid\w*|self[- ]harm|want to die|end my life)\b'
+      - '\b(bomb threat|threatened (me|us|to)|assault(ed)?|sexual(ly)? harass\w*)\b'
+
+  # ---- Outgoing: commitments nobody may make without authority ---------------------
+  - id: refund
+    applies_to: outgoing
+    action: placeholder
+    authority: billing lead
+    patterns:
+      - '\b(will|we''ll|they''ll|I''ll)\s+(be\s+)?(refund|reimburs|credit|compensat)\w*'
+      - '\b(will|we''ll|they''ll|I''ll)\s+(be\s+)?(issu|process)\w*\s+(\w+\s+){0,3}(refund|reimbursement|credit|compensation|voucher)'
+      - '\b(refund|reimbursement|credit|compensation)s?\b[^.!?]{0,40}\b(will be|has been|have been|is being)\s+(issued|processed|applied|sent|added|refunded|credited)'
+      - '\b(we''ve|we have|I''ve|I have)\s+(issued|processed|refunded|credited|reimbursed)\b'
+    unless:
+      - '\b(submit|request|apply)\b[^.!?]{0,30}\b(refund|reimbursement)\b'
+      - '\b(not|unable|can''t|cannot|won''t)\b'
+  - id: money_offer
+    applies_to: outgoing
+    action: placeholder
+    authority: billing lead
+    patterns:
+      - '\b(we''ll|we will|we''ve|we have|we can|I''ll|I can)\s+(offer|give|send|provide|add|deposit|issue)\b[^.!?]{0,50}(\$\s?\d|\d[\d,]*\s*(miles|points)|voucher|gift card|credit|discount)'
+    unless:
+      - '\b(not|unable|can''t|cannot|won''t)\b'
+  - id: policy_exception
+    applies_to: outgoing
+    action: placeholder
+    authority: team lead
+    patterns:
+      - '\b(we''ll|we will|we''ve|we have|we can|they''ll|they will|I''ll|I can|I''ve)\s+(\w+\s+){0,3}(waive|waived|waiving|make an exception|made an exception|override)\b'
+      - '\b(put|added|placed|applied|noted)\s+(a|an)\s+(\w+\s+)?(waiver|exception)\b'
+      - '\b(one[- ]time (exception|courtesy|waiver)|as a (one[- ]time )?courtesy,? (we|I))\b'
+    unless:
+      - '\b(not|unable|can''t|cannot|won''t)\b'
+  - id: liability
+    applies_to: outgoing
+    action: placeholder
+    authority: team lead
+    patterns:
+      - '\b(our fault|we messed up|we(''re| are) (responsible|liable)|we (made|caused) (a|an|the|this) (mistake|error))\b'
+      - '\b(this|that|it) was (our|an?) (error|mistake)\b'
+      - '\b(we|I) guarantee\b'
+  - id: escalation
+    applies_to: outgoing
+    action: placeholder
+    authority: team lead
+    patterns:
+      - '\b(escalat\w+|expedit\w+ (your|this|the) (bag|claim|case|refund|request|file)|flagged (it|this|you) as (urgent|priority)|priority (handling|case|ticket)|bump(ed)? (you|this) up)\b'
+    unless:
+      - '\bif you (need|want|would like) to escalate\b'
+
+  # ---- Outgoing: allowed commitments, tracked on the action list -------------------
+  - id: follow_up
+    applies_to: outgoing
+    action: track
+    patterns:
+      - '\b(we''ll|we will|someone will|an agent will|a (member|specialist|representative) (of our team )?will|they''ll|they will|I''ll|I will)\s+(\w+\s+){0,2}(call|contact|email|e-mail|reach out|follow up|get back|update|send|be in touch|let you know)\b'
+      - '\b(we|I) promise to (call|contact|email|let you know|get back|follow up|update)\b'
+    unless:
+      - '\b(share|pass|forward|send)\w*\s+(\w+\s+){0,3}(feedback|comments|kind words|compliments|praises?|kudos|shout-?outs?|thanks)\b'
+      - '\blet (us|me) know\b'

@@ -1,0 +1,18 @@
+# One firm = one config file. This is the seam where a second organisation plugs in.
+# Development stand-in: American Airlines replies from the Customer Support on Twitter
+# dataset (CC BY-NC-SA 4.0). No affiliation with American Airlines is implied.
+
+firm:
+  name: American Airlines (Twitter corpus stand-in)
+  timezone: America/Chicago
+
+corpus:
+  kind: twcs              # importer: twcs (tweet CSV). mbox is on the later list.
+  path: data/raw/twcs/twcs.csv
+  brand_handle: AmericanAir
+
+# Numbers that belong to the firm, not to a customer. Never redacted.
+public_numbers:
+  - "800-433-7300"
+
+data_dir: data/americanair
