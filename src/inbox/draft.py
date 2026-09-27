@@ -107,7 +107,7 @@ Rules:
 - If the new message asks something the approved reply does not answer, do not answer it. List it under "uncovered".
 - Do not promise refunds, money, compensation, exceptions, escalations or deadlines beyond what the approved reply already says.
 - Write in the language of the new message. Keep it about as short as the approved reply. No signature.
-- Set "fits" to false if the approved reply is about a different problem than the new message.
+- Decide "fits" first, strictly. It is true only if the approved reply deals with the same specific problem as the new message (same product or service, same kind of fault or request), so that a support agent would send it with small edits. Sharing a topic is not enough: a check-in app error and a passport kiosk are both "check-in" but not the same problem. If in doubt, false. When "fits" is false, leave "reply" empty.
 
 Return JSON only: {"fits": true|false, "reply": "...", "uncovered": ["..."]}"""
 
@@ -195,8 +195,15 @@ class Drafter:
         best = hits[0].sim if hits else 0.0
         best_doc = doc_hits[0].sim if doc_hits else 0.0
 
+        # A live dated note describes what is happening now, so when one matches it wins
+        # over an older approved answer that only looks similar.
+        note_first = bool(doc_hits) and doc_hits[0].kind == "note" and best_doc >= self.t.docs
         try:
-            if hits and best >= self.t.reuse:
+            if note_first:
+                res = self._from_docs(mail, question, doc_hits)
+                if res is None and hits and best >= self.t.reuse:
+                    res = self._reuse(mail, question, hits[0], hits)
+            elif hits and best >= self.t.reuse:
                 res = self._reuse(mail, question, hits[0], hits)
                 if res is None and best_doc >= self.t.docs:
                     res = self._from_docs(mail, question, doc_hits)

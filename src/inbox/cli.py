@@ -29,6 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("spikes", help="step 9: replay spike detection over the corpus timeline")
     p.add_argument("--window-hours", type=int, default=6)
     sub.add_parser("digest", help="print today's digest")
+    sub.add_parser("scenarios", help="realistic end-to-end scenarios with the real model")
     args = ap.parse_args(argv)
     firm = load_firm(args.firm)
 
@@ -73,6 +74,10 @@ def main(argv: list[str] | None = None) -> int:
         from .store import connect
 
         print(actions.digest(connect(firm.db_path), firm_name=firm.name))
+    elif args.cmd == "scenarios":
+        from .scenarios import run as run_scenarios
+
+        print(run_scenarios(firm))
     return 0
 
 

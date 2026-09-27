@@ -137,6 +137,25 @@ def test_dated_note_covers_a_new_incident(firm):
     assert d2.handle(mail("app login fails error 403 since v2 release", day=25)).route == "refused"
 
 
+def test_live_note_wins_over_an_old_answer_that_only_looks_similar(firm):
+    conn = connect(firm.db_path)
+    with conn:
+        add_doc(conn, "note", "wifi not working on flights this week",
+                "wifi not working on my flight: the onboard system is down fleet-wide until Friday, no reset helps.",
+                created_at=at(9), expires_in_days=7)
+    conn.close()
+
+    def reply(system, user):
+        if "SOURCES" in user:
+            return js(fits=True, reply="The onboard Wi-Fi is down until Friday. [source: wifi not working on flights this week]", uncovered=[])
+        return js(fits=True, reply="Please ask a flight attendant to reset the system.", uncovered=[])
+
+    d, _ = drafter(firm, reply)
+    res = d.handle(mail("wifi not working on my flight"))
+    assert res.route == "docs"
+    assert "reset" not in res.draft
+
+
 def test_non_english_draft_is_checked_through_translation(firm):
     def reply(system, user):
         if "adapt" in system:
