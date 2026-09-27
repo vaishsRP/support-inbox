@@ -430,7 +430,13 @@ def _read_page(mb: Mailbox, conn: sqlite3.Connection, key: str, log=print) -> tu
     return draft_id, current, stable
 
 
+def _content(text: str) -> str:
+    """The page without its 'Updated ...' line: what decides whether to rewrite it."""
+    return _hash("\n".join(l for l in text.splitlines() if not l.startswith("Updated ")))
+
+
 def _write_page(mb: Mailbox, conn: sqlite3.Connection, key: str, subject: str, text: str, draft_id: str | None) -> None:
+    _state(conn, f"{key}_content", _content(text))
     draft_id = mb.put_draft(to=mb.me, subject=subject, body=text, draft_id=draft_id)
     _state(conn, f"{key}_draft", draft_id)
     _state(conn, f"{key}_written", _hash(mb.draft_text(draft_id) or text))
@@ -493,7 +499,7 @@ def sync_action_list(mb: Mailbox, conn: sqlite3.Connection, log=print) -> int:
         if closed or added:
             log(f"[gmail] action list: {closed} ticked off, {added} added")
     text, ids = action_list_text(conn)
-    if draft_id and ids == written and not ready:
+    if draft_id and not ready and _content(text) == _state(conn, "action_content"):
         return closed                     # nothing changed: leave the draft alone
     _write_page(mb, conn, "action", ACTION_SUBJECT, text, draft_id)
     _state(conn, "action_ids", ",".join(map(str, ids)))
@@ -556,7 +562,7 @@ def sync_context(mb: Mailbox, conn: sqlite3.Connection, drafter: Drafter, log=pr
             drafter.refresh_docs()
             log("[gmail] context updated from the context draft")
     text, ids = context_text(conn)
-    if draft_id and ids == written and not ready:
+    if draft_id and not ready and _content(text) == _state(conn, "context_content"):
         return
     _write_page(mb, conn, "context", CONTEXT_SUBJECT, text, draft_id)
     _state(conn, "context_ids", ",".join(ids))
