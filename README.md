@@ -130,13 +130,13 @@ incoming mail
   │    ├─ a past answer fits                    →  adapt it
   │    ├─ a policy page fits                    →  draft from it, cite it
   │    └─ nothing fits                          →  no reply; related emails + questions to ask
-  └─ outgoing rules on the draft: promise beyond authority  →  [[NEEDS AUTHORITY: ...]]
+  └─ outgoing rules on the draft: promise beyond authority  →  [[NEEDS APPROVAL: ...]]
 
 sent reply  →  diff against the draft  ·  promises become action-list rows  ·  joins the answer pool
 ```
 
 Everything in double brackets is for the agent, never the customer: `[[name]]`,
-`[[CHECK: what to look up]]`, `[[NEEDS AUTHORITY: refund, ask billing lead]]`,
+`[[CHECK: what to look up]]`, `[[NEEDS APPROVAL: refund, ask billing lead]]`,
 `[[AGENT NOTE: ...]]`. A bracket that reaches a customer is counted as a miss.
 
 Data: the public *Customer Support on Twitter* dataset (Kaggle, CC BY-NC-SA 4.0),

@@ -87,7 +87,7 @@ def test_business_day_range_takes_the_later_end():
 def test_placeholder_replaces_only_the_committing_sentence():
     draft = "Sorry about the seat. A refund for the seat will be issued. Safe travels!"
     out, hits = apply_placeholders(draft, RULES)
-    assert out == "Sorry about the seat. [[NEEDS AUTHORITY: refund, ask billing lead]] Safe travels!"
+    assert out == "Sorry about the seat. [[NEEDS APPROVAL: refund, ask billing lead]] Safe travels!"
     assert ids(hits) == ["refund"]
 
 
@@ -97,7 +97,7 @@ def test_prompt_injection_output_is_still_caught():
     compliant_draft = "Absolutely. We will refund your full fare today."
     out, _ = apply_placeholders(compliant_draft, RULES)
     assert "refund your full fare" not in out
-    assert "[[NEEDS AUTHORITY: refund" in out
+    assert "[[NEEDS APPROVAL: refund" in out
 
 
 def test_translation_hook_catches_other_languages():

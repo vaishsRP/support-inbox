@@ -30,7 +30,7 @@ from .rules import Rule
 # Read, label, and manage drafts. Nothing in this code uses it to send.
 SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
 LABELS = [
-    "AI/draft-ready", "AI/needs-authority", "AI/no-answer",
+    "AI/draft-ready", "AI/needs-approval", "AI/no-answer",
     "AI/confidence-high", "AI/confidence-medium", "AI/confidence-low", "AI/automated", "AI/digest",
 ]
 

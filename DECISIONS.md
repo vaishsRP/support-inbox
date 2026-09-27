@@ -3,6 +3,19 @@
 What changed, when, and what prompted it. Newest first. Findings that could
 change the project's direction are marked **finding**.
 
+## 2026-09-27 (night, later)
+
+- **Bug: re-importing history deleted live mail.** Both importers ran `DELETE FROM
+  messages` before loading the corpus, so re-importing the demo company's history wiped
+  the text of every visitor email received before it (the drafts survived, the emails
+  they answered did not). In a real deployment that would have erased every Gmail
+  message the tool had seen. Importers now delete only their own rows (corpus ids are
+  prefixed `corpus-`; tweets are short all-digit ids), with a test that live and visitor
+  mail survive a re-import. The 14 demo emails already emptied were removed.
+- **Renamed `AI/needs-authority` to `AI/needs-approval`**, and the placeholder
+  `[[NEEDS AUTHORITY: ...]]` to `[[NEEDS APPROVAL: ...]]`, at the owner's request: it
+  says what the label is for, the team lead's queue of things someone must approve.
+
 ## 2026-09-27 (night): towards shipping
 
 The owner asked for drafts that could go out as they are, the real Gmail integration,

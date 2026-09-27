@@ -48,7 +48,7 @@ verified tonight:
 
 | Claim | Status |
 |---|---|
-| Never promises what nobody authorised: money, refunds, exceptions, deadlines become `[[NEEDS AUTHORITY]]` placeholders | **Verified in the scenarios**, including a prompt injection that told the model it was "authorised by management". Rules fire on under 1% of real replies, so they do not bury agents. The replay drafts never tried to promise anything, so they add no evidence either way. |
+| Never promises what nobody authorised: money, refunds, exceptions, deadlines become `[[NEEDS APPROVAL]]` placeholders | **Verified in the scenarios**, including a prompt injection that told the model it was "authorised by management". Rules fire on under 1% of real replies, so they do not bury agents. The replay drafts never tried to promise anything, so they add no evidence either way. |
 | Refuses with a reason instead of guessing, and still helps the agent | **Verified**. Refusals came with related past threads and questions to ask the customer, in the customer's language. |
 | Turns the inbox into an action list: promises with deadlines, checks, spikes | **Mostly**. Promises and checks work. Spike detection caught the iOS 11.1 "I" bug on the evening it shipped (16 customers against a normal of 1) and a post-Thanksgiving delay surge. But one incident fired in eight categories at once, and two windows spiked for both brands at the same time, which looks like a dataset artefact. Grouping spikes that overlap in time cut 43 rows to 13; it is still several rows for one multi-day incident. |
 | Measures how much a human changed the draft, not "deflection rate" | **Built, not yet measured** on real human edits. Needs the 30 + 30 hand-run study in the spec. |

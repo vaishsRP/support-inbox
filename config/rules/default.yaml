@@ -4,7 +4,7 @@
 #   applies_to  incoming (the customer's mail) or outgoing (the draft, and the sent reply)
 #   action      block        - incoming only: no draft at all, route to a person
 #               placeholder  - outgoing: the sentence is removed and replaced with
-#                              [[NEEDS AUTHORITY: ...]] for someone allowed to make it
+#                              [[NEEDS APPROVAL: ...]] for someone allowed to make it
 #               track        - outgoing: allowed, but becomes a row on the action list
 #   patterns    regular expressions, case-insensitive. Any one matching is a hit.
 #   unless      optional regexes; if one matches the same sentence, the rule does not fire

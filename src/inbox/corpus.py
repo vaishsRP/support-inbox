@@ -90,7 +90,9 @@ def import_twcs(firm: Firm, log=print) -> dict:
     conn = connect(firm.db_path)
     with conn:
         conn.execute("DELETE FROM pairs WHERE source = 'corpus'")
-        conn.execute("DELETE FROM messages")
+        # Only the corpus's own tweets (short all-digit ids). Live mail, whose ids are
+        # 16-character Gmail ids or demo ids, survives a re-import.
+        conn.execute("DELETE FROM messages WHERE length(id) <= 12 AND id NOT GLOB '*[^0-9]*'")
         conn.executemany(
             "INSERT INTO messages VALUES (?,?,?,?,?,?,?)",
             (

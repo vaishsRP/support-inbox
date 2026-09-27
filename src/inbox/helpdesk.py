@@ -37,10 +37,17 @@ def import_helpdesk(firm: Firm, log=print) -> dict:
     rows = read_rows(firm.corpus_path)
     conn = connect(firm.db_path)
     with conn:
+        # Re-importing history replaces only the imported history. Live mail (Gmail,
+        # demo visitors) and the replies people sent stay untouched.
+        conn.execute(
+            "DELETE FROM messages WHERE id LIKE 'corpus-%' "
+            "OR id IN (SELECT customer_msg_id FROM pairs WHERE source = 'corpus') "
+            "OR (author = ? AND id GLOB 'a[0-9]*')",   # answer rows from before the prefix existed
+            (firm.brand_handle,),
+        )
         conn.execute("DELETE FROM pairs WHERE source = 'corpus'")
-        conn.execute("DELETE FROM messages")
         for i, r in enumerate(rows):
-            msg_id = str(r.get("msg_id") or f"q{i}")
+            msg_id = str(r.get("msg_id") or f"corpus-q{i}")
             asked = str(r["asked_at"])
             answered = str(r.get("answered_at") or asked)
             conn.execute(
@@ -49,7 +56,7 @@ def import_helpdesk(firm: Firm, log=print) -> dict:
             )
             conn.execute(
                 "INSERT INTO messages VALUES (?,?,?,?,0,?,?)",
-                (f"a{i}", str(r["thread_id"]), msg_id, firm.brand_handle, answered, str(r["answer"])),
+                (f"corpus-a{i}", str(r["thread_id"]), msg_id, firm.brand_handle, answered, str(r["answer"])),
             )
             answer = redact(clean(str(r["answer"]), keep_urls=True), firm.public_numbers)
             conn.execute(

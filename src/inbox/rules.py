@@ -114,7 +114,7 @@ def apply_placeholders(text: str, rules: list[Rule], translate=None) -> tuple[st
     blocked = [h for h in hits if h.action == "placeholder"]
     for h in blocked:
         who = f", ask {h.authority}" if h.authority else ""
-        text = text.replace(h.sentence, f"[[NEEDS AUTHORITY: {h.rule.replace('_', ' ')}{who}]]", 1)
+        text = text.replace(h.sentence, f"[[NEEDS APPROVAL: {h.rule.replace('_', ' ')}{who}]]", 1)
     return text, hits
 
 

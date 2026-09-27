@@ -264,7 +264,7 @@ details.doc div{white-space:pre-wrap;color:var(--ink2);margin-top:6px}
     <button class="nav" data-f="inbox" aria-current="true"><svg width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M19 3H4.99C3.88 3 3 3.9 3 5v14c0 1.1.88 2 1.99 2H19c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 12h-4c0 1.66-1.35 3-3 3s-3-1.34-3-3H4.99V5H19v10z"/></svg>Inbox<span class="n" id="nInbox"></span></button>
     <h4>Labels</h4>
     <button class="nav" data-f="ready"><span class="sw" style="background:#16a765"></span>AI/draft-ready<span class="n" id="nReady"></span></button>
-    <button class="nav" data-f="auth"><span class="sw" style="background:#d93025"></span>AI/needs-authority<span class="n" id="nAuth"></span></button>
+    <button class="nav" data-f="auth"><span class="sw" style="background:#d93025"></span>AI/needs-approval<span class="n" id="nAuth"></span></button>
     <button class="nav" data-f="none"><span class="sw" style="background:#9aa0a6"></span>AI/no-answer<span class="n" id="nNone"></span></button>
     <div class="boxes">
       <button class="box" data-f="actions"><b>Action list</b><span id="nActions">Nothing open</span></button>
@@ -309,15 +309,15 @@ function labels(m){
   if(m.pending)return[["Drafting…","c-busy"]];
   const o=[];
   if(m.route==="reuse"||m.route==="docs")o.push(["AI/draft-ready","c-ready"]);
-  if(m.route==="blocked"||(m.draft||"").includes("[[NEEDS AUTHORITY"))o.push(["AI/needs-authority","c-auth"]);
+  if(m.route==="blocked"||(m.draft||"").includes("[[NEEDS APPROVAL"))o.push(["AI/needs-approval","c-auth"]);
   if(m.route==="refused"||m.route==="failed")o.push(["AI/no-answer","c-none"]);
   return o;
 }
 const chips=m=>labels(m).map(([l,c])=>`<span class="chip ${c}">${esc(l)}</span>`).join("");
-const F={ready:"AI/draft-ready",auth:"AI/needs-authority",none:"AI/no-answer"};
+const F={ready:"AI/draft-ready",auth:"AI/needs-approval",none:"AI/no-answer"};
 const inF=(m,f)=>f==="inbox"||labels(m).some(([l])=>F[f]===l);
 function when(iso){const d=new Date(iso),n=new Date();return d.toDateString()===n.toDateString()?d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):d.toLocaleDateString([],{day:"numeric",month:"short"})}
-function hl(t){return esc(t).replace(/\[\[([^\[\]]+)\]\]/g,(a,i)=>{const c=i.startsWith("REVIEW")?"review":i.startsWith("NEEDS AUTHORITY")?"auth":i.startsWith("CHECK")?"check":i.startsWith("AGENT NOTE")?"note":"slot";return `<span class="ph ph-${c}">[[${i}]]</span>`})}
+function hl(t){return esc(t).replace(/\[\[([^\[\]]+)\]\]/g,(a,i)=>{const c=i.startsWith("REVIEW")?"review":i.startsWith("NEEDS APPROVAL")?"auth":i.startsWith("CHECK")?"check":i.startsWith("AGENT NOTE")?"note":"slot";return `<span class="ph ph-${c}">[[${i}]]</span>`})}
 
 /* ---------------- switch ---------------- */
 function side(which){
@@ -430,7 +430,7 @@ function renderThread(){
       draft=`<div class="draft"><div class="dh"><span class="d">Draft</span><span>to ${esc(studentName())}</span></div>
         ${editing?`<textarea id="edit">${esc(m.draft)}</textarea>`:`<div class="rendered" id="rendered" title="Click to edit">${hl(m.draft)}</div>`}
         <div class="da"><button class="send" id="doSend">Send</button>${editing?"":`<span style="color:var(--ink3);font-size:12px">Click the draft to edit it</span>`}</div></div>
-        <div class="key"><span><span class="ph ph-review">yellow</span> delete once read</span><span><span class="ph ph-auth">red</span> needs someone with authority</span><span><span class="ph ph-check">blue</span> look it up</span><span><span class="ph ph-note">grey</span> for you, not the student</span></div>`;
+        <div class="key"><span><span class="ph ph-review">yellow</span> delete once read</span><span><span class="ph ph-auth">red</span> needs approval</span><span><span class="ph ph-check">blue</span> look it up</span><span><span class="ph ph-note">grey</span> for you, not the student</span></div>`;
     }else if(m.sent){
       const pct=m.edit_similarity==null?null:Math.round((1-m.edit_similarity)*100);
       draft=`<div class="msg"><div class="avatar" style="width:40px;height:40px;background:#1e8e3e">S</div><div><div class="meta"><b>Harbourbrook support</b><span class="t">just now</span></div><div class="to">to ${esc(studentName())}${pct==null?"":` · you changed ${pct}% of the draft`}</div><div class="body">${esc(m.sent)}</div></div></div>

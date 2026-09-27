@@ -61,8 +61,8 @@ def test_commitment_in_draft_becomes_placeholder(firm):
     d, _ = drafter(firm, reply)
     res = d.handle(mail("My bag did not arrive in Chicago, where is my bag?"))
     assert "We will refund" not in res.draft
-    assert "[[NEEDS AUTHORITY: refund, ask billing lead]]" in res.draft
-    assert "AI/needs-authority" in res.labels
+    assert "[[NEEDS APPROVAL: refund, ask billing lead]]" in res.draft
+    assert "AI/needs-approval" in res.labels
 
 
 def test_answer_that_does_not_fit_falls_back_to_refusal(firm):
@@ -179,7 +179,7 @@ def test_non_english_draft_is_checked_through_translation(firm):
     d, _ = drafter(firm, reply)
     res = d.handle(mail("My bag did not arrive in Chicago, where is my bag?"))
     assert "reembolsaremos" not in res.draft
-    assert "[[NEEDS AUTHORITY: refund" in res.draft
+    assert "[[NEEDS APPROVAL: refund" in res.draft
 
 
 def test_draft_has_no_reference_lines_only_the_review_line(firm):

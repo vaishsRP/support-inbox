@@ -7,7 +7,7 @@ What a company actually gets, how it is installed, and what has to be true first
 Nothing new to learn for the support team. They keep working in Gmail:
 
 - draft replies appear in the threads, ready to check and send;
-- `AI/*` labels sort the inbox: ready, needs someone with authority, no answer;
+- `AI/*` labels sort the inbox: ready, needs approval, no answer;
 - a morning digest arrives as a draft for the team lead to send round.
 
 One small web page for the team lead, the **dashboard**: the action list (promises

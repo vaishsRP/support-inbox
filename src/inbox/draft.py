@@ -215,7 +215,7 @@ class Drafter:
                 draft=None,
                 reason=f"{', '.join(m.rule.replace('_', ' ') for m in blocked)}: route to {', '.join(who) or 'a lead'}",
                 matches=blocked,
-                labels=["AI/needs-authority"],
+                labels=["AI/needs-approval"],
             )
             return self._finish(mail, res, persist)
 
@@ -405,8 +405,8 @@ class Drafter:
                 body, matches = apply_placeholders(res.draft, self.rules, translate=translate)
                 res.matches += matches
                 if any(m.action == "placeholder" for m in matches):
-                    res.labels.append("AI/needs-authority")
-                    res.notes.append("commitments were replaced with NEEDS AUTHORITY placeholders")
+                    res.labels.append("AI/needs-approval")
+                    res.notes.append("commitments were replaced with NEEDS APPROVAL placeholders")
                 for m in matches:
                     if m.action == "track":
                         res.notes.append(f"this draft promises something that will be tracked once sent: \"{m.sentence}\"")

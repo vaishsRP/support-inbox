@@ -29,7 +29,7 @@ Five behaviours, one retrieval index, one rule file, one table.
    escalation, an admission of liability, a policy exception. The committing
    part is never written. The rest of the reply is drafted and the
    commitment is left as a visible placeholder, for example
-   `[[NEEDS AUTHORITY: refund amount, ask billing lead]]`, and the thread is
+   `[[NEEDS APPROVAL: refund amount, ask billing lead]]`, and the thread is
    routed to someone with the authority to fill it. This is an authority
    problem, not a hallucination problem, and it is the reason support
    automation does not get deployed in places where replies are binding.
@@ -261,7 +261,7 @@ draft. The agent opens their inbox, sees a draft waiting, edits it, presses
 send in Gmail. Zero frontend for the reply loop.
 
 Labels carry the rest of the signalling, so the team stays inside Gmail:
-`AI/draft-ready`, `AI/needs-authority`, `AI/no-answer`, plus the confidence
+`AI/draft-ready`, `AI/needs-approval`, `AI/no-answer`, plus the confidence
 band as `AI/confidence-high`, `-medium` or `-low`.
 
 Two screens are built, because nothing like either exists in Gmail: the
