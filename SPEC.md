@@ -11,7 +11,7 @@ Support tools close tickets. This one tracks what you promised.
 
 ## What it does
 
-Five behaviours, one retrieval index, one classifier, one table.
+Five behaviours, one retrieval index, one rule file, one table.
 
 1. **Drafts from past approved answers.** A mail arrives. Find the closest
    previously answered mail. If it is close enough, adapt that approved
@@ -128,8 +128,11 @@ start with:
   answers the team wants to give. That goes in through the context page
   below.
 
-The importer is the same code whichever source it gets. The public dataset
-in decision 1 goes through that same importer. It stands in for a firm's
+The importer is the same code whichever source it gets, reading a CSV of
+customer message, reply, sender, time and thread. This build reads the
+tweet corpus and helpdesk-style CSV. Reading mbox needs the mail-hygiene
+layer, so it is on the later list. The public dataset in decision 1 goes
+through that same importer. It stands in for a firm's
 history because none is available during development, and it is not a
 dependency of the product.
 
@@ -168,12 +171,18 @@ README, not one line of code.
 Not novel as a category. Zendesk, Intercom, Freshdesk and several others
 ship a version of drafting from past tickets. Do not claim otherwise.
 
-Three things are genuinely uncommon and they are the pitch.
+Four things are genuinely uncommon and they are the pitch.
 
-**Commitment awareness.** The classifier asks what a draft commits to, not
-only whether it is accurate. The same classifier does double duty: it
-blocks the commitments nobody authorised, and it produces the tracker rows
-for the ones that are allowed.
+**Commitment awareness.** The rule file asks what a draft commits to, not
+only whether it is accurate. The same rules do double duty: they
+block the commitments nobody authorised, and they produce the action-list
+rows for the ones that are allowed.
+
+**Actionable extraction.** Beyond drafting, the same pass turns the inbox
+into work: commitments to keep, checks to make, and spikes of one problem
+across many customers, all in one action list and a morning digest. The
+support team gets less typing. The manager gets to know what is going wrong
+while it is still going wrong.
 
 **Deliberate refusal.** Returning nothing, with a reason, is the correct
 behaviour and it is rare because it looks bad in a demo.
@@ -217,7 +226,10 @@ means more refusals, until it has labelled some of its own.
 rule list of phrases, or both. Leaning: start with a rule list, because it
 is transparent and a support manager can read and edit it, which matters for
 something whose job is enforcing authority. Add a model pass on top only if
-the rules visibly miss things.
+the rules visibly miss things. There is one rule file. Each rule says
+whether it runs on the incoming mail (a legal threat: never draft) or on
+the outgoing text (a refund promised: placeholder), and what happens on a
+match: block, placeholder, or track.
 
 **4. Where the company-specific parts live.** Leaning: one config file
 holding the commitment rules, the category list, and the location of the
@@ -260,15 +272,8 @@ Runs as a Python service, FastAPI, in Docker. Poll the mailbox every minute
 or two rather than setting up push notifications. Poll the sent folder to
 capture what the human actually sent.
 
-**How drafts look.** A support reply should read like a person wrote it,
-not like a newsletter. Heavy designed templates of the Brevo or Resend kind
-suit marketing and transactional mail: in a support thread they look
-automated, they fall apart when the customer replies and the thread is
-quoted, and image-heavy mail is more likely to land in spam. So drafts get
-one light wrapper from the config: logo, brand colour, sign-off and footer,
-simple HTML with a plain-text version alongside. It is one template, not a
-designer, and it can be switched off per firm. Edit distance and the
-commitment rules always run on the plain text, never the HTML.
+Drafts are plain text, the way a person writes a support reply. Styled
+templates are on the later list.
 
 Note for later: reading and writing mail is a restricted Google scope. Fine
 in testing mode for a handful of accounts. Real deployment needs Google's
@@ -281,8 +286,7 @@ Three numbers, all cheap.
 
 - What fraction of mails got a draft at all, and what fraction were refused.
 - How much the human changed the draft before sending. Report it per mail
-  and as a distribution, and watch whether it falls as corrections feed back
-  into the pool.
+  and as a distribution.
 - Of the commitments that went out, how many were caught by the tracker.
   Check by hand on a sample, since a missed commitment is the failure that
   matters most. A placeholder that reached a customer counts as a miss.
@@ -290,18 +294,30 @@ Three numbers, all cheap.
 Nothing else. These exist so that changes to prompts and retrieval can be
 judged, not to produce a research result.
 
+**What the replay can and cannot show.** Replaying the corpus in time order
+compares each draft with the reply the brand actually sent. That is
+similarity to a reference answer, not the distance a human moved the text,
+because nobody edits anything in a replay. The replay curve, similarity
+rising as the pool grows, shows that more examples help. It does not show
+that human corrections teach the tool, which is the pitch.
+
+That claim gets a small hand-run study instead. Edit thirty drafts by hand
+as an agent would, add the edited versions to the pool, then draft and edit
+thirty new mails on the same kinds of question, and compare how much each
+batch had to be changed. It is thirty mails a batch, done by one person,
+and the README reports it as exactly that.
+
 ## Build order
 
 Each step ends with something working.
 
-1. Write the importer (mbox and CSV) and load the development corpus
-   through it. Look at it. Report how repetitive it actually is, because
+1. Write the importer and load the development corpus through it. Look at it. Report how repetitive it actually is, because
    the entire premise depends on that.
 2. Retrieval over past answered mails. No drafting yet, just show the three
    closest past threads for a new mail and judge by eye whether they are the
    right ones.
-3. Hand-label a hundred pairs, set the reuse threshold and the confidence
-   bands from them.
+3. Hand-label about 150 pairs, set the reuse threshold and the confidence
+   bands from about 100 of them, and hold the rest back as the test set.
 4. Drafting by adapting a retrieved approved answer, with placeholders for
    missing facts.
 5. The refusal path. Nothing close means no reply text, a stated reason,
@@ -310,7 +326,8 @@ Each step ends with something working.
    authority.
 7. The action list (commitments and checks), customer history by sender,
    and the daily digest.
-8. Capture the sent version, diff it against the draft, store both.
+8. Capture the sent version, diff it against the draft, store both. The
+   replay curve, and the hand-run study of thirty plus thirty drafts.
 9. Categories and the frequent-complaints view, which is a count over the
    same data. Spike detection is that count over a short window, plus the
    common causes per category.
@@ -318,31 +335,22 @@ Each step ends with something working.
     retrieval pool. Late, because until the retrieval works there is nothing
     for it to feed.
 11. Wrap in FastAPI and Docker, tests in GitHub Actions.
-12. Gmail last. Drafts into threads, labels for signalling, the draft
-    wrapper template. The no-send check runs in CI from step 11 onward.
+12. Gmail last. Drafts into threads, labels for signalling. The no-send
+    check runs in CI from step 11 onward.
 
-Steps 1 to 10 all work against a folder of email files on disk. If Gmail
+Steps 1 to 10 all work against the corpus on disk. If Gmail
 turns into a two-week fight, the project is still finished.
 
 ## Edge cases the build must handle
 
 These are part of the steps they belong to, not extra steps.
 
-**Before anything is drafted (step 1 importer, step 5 refusal path)**
+**Before anything is drafted (step 5 refusal path)**
 
-- *Quoted text, signatures, legal footers.* Strip them before embedding,
-  or every mail that quotes the same footer looks like a match.
-- *Auto-replies, bounces, newsletters, spam.* Detect them (the
-  `Auto-Submitted` and `Precedence: bulk` headers, known bounce senders)
-  and skip them. Never draft a reply to an auto-reply, since two robots
-  answering each other is a loop. They do not count towards spikes.
 - *Mails that must never be drafted.* Legal threats, data deletion or
   access requests, chargeback threats, press enquiries, anything suggesting
-  someone is unsafe. A second rule list in the config runs on the incoming
-  mail, not the draft. A match means no draft and routing, like a
-  commitment.
-- *Attachments.* Not read. If a mail has one, add an agent note saying so,
-  so the agent does not assume the draft took the screenshot into account.
+  someone is unsafe. Rules in the same rule file, marked to run on the
+  incoming mail. A match means no draft and routing, like a commitment.
 - *Customer's language.* Draft in the language the customer wrote in.
   The commitment rules are written in English, so for any other language
   they also run on an English translation of the draft. Without that, a
@@ -410,6 +418,13 @@ These are part of the steps they belong to, not extra steps.
 - Use the history API with a stored history id, so a restart neither
   misses mail nor processes it twice.
 
+**Not in this build: mail hygiene.** Tweets have no quoted text,
+signatures, footers, attachments, auto-reply headers or bounces, so code
+for them could not be run against anything real. The importer handles the
+tweet corpus. The README says that stripping quoted text and signatures,
+skipping auto-replies and bounces, and noting attachments is the first
+thing a real mail deployment needs. It is at the top of the later list.
+
 **Evaluation (every step)**
 
 - *Future answers leaking into the replay.* When replaying the corpus, the
@@ -419,11 +434,12 @@ These are part of the steps they belong to, not extra steps.
 ## Caveats to know up front
 
 - **"DM us" replies in the Twitter corpus.** Many brand replies are "please
-  DM us" and the real answer happened privately. They are extremely
+  DM us" or a link to a contact page, and the real answer happened
+  privately. They are extremely
   repetitive and useless as answers. Step 1 reports repetition both with
   and without them, and only the second number counts.
-- **Dataset licence.** The dataset is CC BY-NC-SA 4.0 (confirm on the
-  Kaggle page). The raw data is not committed to the repo: a script
+- **Dataset licence.** The dataset is CC BY-NC-SA 4.0, confirmed on the
+  Kaggle page on 2026-09-27. The raw data is not committed to the repo: a script
   downloads it. The labelled pairs contain tweet text, so they are published
   under the same licence, separately from the code's MIT licence, and the
   README says so. No affiliation with any brand in the data is implied, and
@@ -459,6 +475,10 @@ real firm uses it:
 
 Seeds the list at the bottom of the README. None of it is in the build.
 
+- Mail hygiene for real mail: an mbox importer, stripping quoted text,
+  signatures and footers, skipping auto-replies, bounces and newsletters,
+  and an agent note when a mail has attachments.
+
 - Checks that answer themselves: read-only lookups into billing, order and
   status systems.
 - Outlook and helpdesk connectors (Zendesk, Freshdesk) alongside Gmail.
@@ -468,8 +488,8 @@ Seeds the list at the bottom of the README. None of it is in the build.
 - Closing a commitment automatically when a follow-up goes out in its
   thread.
 - Reading attachments.
-- A template designer: several templates, a visual editor, per-category
-  styles.
+- Styled drafts: a light HTML wrapper with logo, colour and footer, and
+  later a template designer.
 
 ## Explicitly out of scope
 
@@ -480,7 +500,8 @@ resembling project management. No multi-tenancy. No fine-tuning. No
 multi-agent anything. No custom review interface, Gmail is the interface.
 No per-agent statistics, which turns a drafting tool into surveillance.
 No automatic sending, ever, under any configuration. No analytics beyond the
-three numbers above. No paid services of any kind. No live connections to
+three numbers above and the complaints and spike views, which are
+counts that lead to actions. No paid services of any kind. No live connections to
 billing, order or status systems; the tool names the check and the agent
 makes it.
 
@@ -495,8 +516,9 @@ README and not into the build.
 - Commitment detection either misses too much to be trusted or flags so much
   that everything needs a supervisor, which makes it useless in both
   directions.
-- Edit distance does not fall as corrections feed back, meaning the loop does
-  not actually learn and the pitch is wrong.
+- In the hand-run study, the second batch of drafts needs as much editing as
+  the first, meaning corrections do not actually teach the tool and the
+  pitch is wrong.
 
 All three are worth knowing. The first one is cheap to check and should be
 checked before anything else is built.
