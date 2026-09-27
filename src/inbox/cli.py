@@ -19,6 +19,8 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("retrieve", help="step 2: closest past threads for a message")
     p.add_argument("text", nargs="?", help="a new message; omit to write the eyeball report")
     p.add_argument("-k", type=int, default=3)
+    sub.add_parser("label", help="step 3: hand-label pairs in the terminal (resumable)")
+    sub.add_parser("calibrate", help="step 3: set thresholds from the labels")
     args = ap.parse_args(argv)
     firm = load_firm(args.firm)
 
@@ -38,6 +40,14 @@ def main(argv: list[str] | None = None) -> int:
         else:
             for h in AnswerIndex(firm).search(args.text, k=args.k):
                 print(f"{h.sim:.3f}  Q: {h.question}\n       A: {h.answer}\n")
+    elif args.cmd == "label":
+        from .label import run_labelling
+
+        run_labelling(firm)
+    elif args.cmd == "calibrate":
+        from .label import calibrate
+
+        calibrate(firm)
     return 0
 
 

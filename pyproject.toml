@@ -13,16 +13,18 @@ dependencies = [
     "pandas>=2.2",
     "numpy>=1.26",
     "scikit-learn>=1.4",
-    "sentence-transformers>=3.0",
     "rapidfuzz>=3.6",
-    "dateparser>=1.2",
     "pyyaml>=6.0",
     "python-dotenv>=1.0",
     "openai>=1.30",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+# The real embedding model. Left out of CI, where tests use a hashing stand-in.
+embed = ["sentence-transformers>=3.0"]
+dev = ["pytest>=8", "httpx>=0.27"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
