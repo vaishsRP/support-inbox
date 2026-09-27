@@ -235,3 +235,11 @@ def test_context_draft_removes_and_adds_notes(box):
     assert "False alarm: lifts broken" not in live
     assert live.get("Heating outage Block C") == "note" and live.get("Deposits and refunds") == "standing"
     assert "Heating outage Block C" in g.draft_body(_state(conn, "context_draft"))
+
+
+def test_add_line_survives_gmail_rewrapping():
+    from inbox.gmail import ADD_TODO, _below
+
+    assert _below("x\nADD A TO-DO BELOW THIS LINE (one per\nline)\nCall Lina\n", ADD_TODO) == "Call Lina"
+    assert _below("x\nADD A TO-DO BELOW THIS LINE (one per line) Call Lina", ADD_TODO) == "Call Lina"
+    assert _below("x\nADD A TO-DO BELOW THIS LINE (one per line)\n", ADD_TODO) == ""

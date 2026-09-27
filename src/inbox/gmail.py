@@ -404,14 +404,16 @@ ADD_NOTE = "ADD A NOTE BELOW THIS LINE (first line is the title, add \"for 3 day
 
 
 def _below(text: str, marker: str) -> str:
-    i = text.find(marker.split(" (")[0])
-    if i < 0:
-        return ""
-    rest = text[i:].split("\n", 1)
-    return rest[1].strip() if len(rest) > 1 else ""
+    """Whatever a person typed under the add line, however Gmail's editor wrapped it."""
+    words = marker.split()
+    for n in (len(words), len(marker.split(" (")[0].split())):   # the full line, else just its start
+        m = re.search(r"\s+".join(map(re.escape, words[:n])), text, re.I)
+        if m:
+            return text[m.end():].strip()
+    return ""
 
 
-def _read_page(mb: Mailbox, conn: sqlite3.Connection, key: str) -> tuple[str | None, str | None, bool]:
+def _read_page(mb: Mailbox, conn: sqlite3.Connection, key: str, log=print) -> tuple[str | None, str | None, bool]:
     """(draft id, current text, ready): ready is False while a person may still be typing."""
     draft_id = _state(conn, f"{key}_draft")
     if not draft_id:
@@ -423,6 +425,8 @@ def _read_page(mb: Mailbox, conn: sqlite3.Connection, key: str) -> tuple[str | N
         return draft_id, current, False   # untouched since we wrote it
     stable = _state(conn, f"{key}_seen") == _hash(current)
     _state(conn, f"{key}_seen", _hash(current))
+    if not stable:
+        log(f"[gmail] {key} draft was edited; reading it on the next check if it stays the same")
     return draft_id, current, stable
 
 
@@ -434,7 +438,8 @@ def _write_page(mb: Mailbox, conn: sqlite3.Connection, key: str, subject: str, t
 
 def action_list_text(conn: sqlite3.Connection, now: datetime | None = None) -> tuple[str, list[int]]:
     now = now or datetime.now(timezone.utc)
-    rows = actions.open_rows(conn)
+    rows = [r for r in actions.open_rows(conn)
+            if not (r["customer_id"] or "").startswith("demo-") and not (r["rule"] or "").startswith("spike:demo-")]
 
     def who(r) -> str:
         m = conn.execute("SELECT author, text FROM messages WHERE thread_id = ? AND inbound = 1 ORDER BY created_at LIMIT 1",
@@ -469,7 +474,7 @@ def action_list_text(conn: sqlite3.Connection, now: datetime | None = None) -> t
 def sync_action_list(mb: Mailbox, conn: sqlite3.Connection, log=print) -> int:
     """The team's to-do list as a draft. Deleted lines are marked done; lines typed under
     the last heading become to-dos. Returns how many rows were closed."""
-    draft_id, current, ready = _read_page(mb, conn, "action")
+    draft_id, current, ready = _read_page(mb, conn, "action", log)
     written = [int(x) for x in (_state(conn, "action_ids") or "").split(",") if x]
     closed = added = 0
     if current is not None and not ready and _hash(current) != _state(conn, "action_written"):
@@ -527,7 +532,7 @@ def sync_context(mb: Mailbox, conn: sqlite3.Connection, drafter: Drafter, log=pr
     by typing it at the bottom."""
     from .docs import add_doc, retire_doc
 
-    draft_id, current, ready = _read_page(mb, conn, "context")
+    draft_id, current, ready = _read_page(mb, conn, "context", log)
     written = [x for x in (_state(conn, "context_ids") or "").split(",") if x]
     if current is not None and not ready and _hash(current) != _state(conn, "context_written"):
         return                            # a person is editing: wait until it settles
