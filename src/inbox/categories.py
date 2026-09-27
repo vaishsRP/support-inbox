@@ -42,6 +42,11 @@ def _cfg_path(firm: Firm) -> Path:
     return ROOT / "config" / "categories" / f"{firm.key}.yaml"
 
 
+def _centroid_path(firm: Firm) -> Path:
+    """Centroids sit next to the names they belong to, so the two cannot drift apart."""
+    return ROOT / "config" / "categories" / f"{firm.key}.npz"
+
+
 @dataclass
 class Category:
     id: int
@@ -88,7 +93,8 @@ def cluster(firm: Firm, k: int = 24, seed: int = 0, log=print) -> list[Category]
         )
         log(f"[categories] {c:2d} n={len(idx):5d}  {', '.join(kw[:6])}")
 
-    np.savez(firm.data_dir / "categories.npz", centroids=centroids.astype(np.float32))
+    _centroid_path(firm).parent.mkdir(parents=True, exist_ok=True)
+    np.savez(_centroid_path(firm), centroids=centroids.astype(np.float32))
     save(firm, cats, sizes=Counter(labels.tolist()), suggested=True)
     return cats
 
@@ -100,7 +106,7 @@ def save(firm: Firm, cats: list[Category], sizes: Counter | None = None, suggest
         f"# Categories for {firm.name}.\n"
         "# Derived by clustering real questions (python -m inbox categorize). The names below are\n"
         + ("# SUGGESTED from keywords: rename each one by hand; the complaints view uses these names.\n" if suggested else "#\n")
-        + "# ids must stay as they are: they match the cluster centroids in data/<firm>/categories.npz.\n\n"
+        + "# ids must stay as they are: they match the cluster centroids in the .npz file next to this one.\n\n"
     )
     body = {
         "categories": [
@@ -124,7 +130,7 @@ def load(firm: Firm) -> tuple[list[Category], np.ndarray]:
         Category(c["id"], c["name"], c.get("keywords", []), c.get("examples", []), c.get("common_causes") or [])
         for c in raw["categories"]
     ]
-    centroids = np.load(firm.data_dir / "categories.npz")["centroids"]
+    centroids = np.load(_centroid_path(firm))["centroids"]
     return cats, centroids
 
 

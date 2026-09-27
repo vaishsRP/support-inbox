@@ -1,7 +1,7 @@
 # Categories for Harbourbrook Student Homes (made-up demo company).
 # Derived by clustering real questions (python -m inbox categorize). The names below are
 # Named by hand from the examples below.
-# ids must stay as they are: they match the cluster centroids in data/<firm>/categories.npz.
+# ids must stay as they are: they match the cluster centroids in the .npz file next to this one.
 
 categories:
 - id: 0
