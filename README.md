@@ -196,8 +196,7 @@ pytest -q                                       # no model downloads, no network
 
 ## Later list
 
-New ideas go here, not into the build: mail hygiene for real email (quoted text,
-signatures, auto-replies, attachments); Gmail drafts and labels; checks that answer
+New ideas go here, not into the build: checks that answer
 themselves (read-only lookups into billing or booking systems); Outlook and helpdesk
 connectors; a question answered many times becomes a suggested help-centre article;
 spike alerts to Slack; a model pass over commitments if the rules visibly miss
