@@ -55,6 +55,9 @@ svg{flex:none}
 .nav:hover{background:rgba(68,71,70,.08)}
 .nav[aria-current="true"]{background:var(--blue-soft);font-weight:700;color:var(--compose-ink)}
 .nav .n{margin-left:auto;font-size:12px;font-weight:700}
+.nav{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav .sw,.nav svg{flex:none}
+.app>*{min-width:0}
 .nav .sw{width:10px;height:10px;border-radius:2px;margin:0 3px}
 .side h4{font-size:16px;font-weight:500;margin:18px 0 6px 26px;color:var(--ink)}
 .side{display:flex;flex-direction:column}
@@ -183,10 +186,24 @@ details.doc div{white-space:pre-wrap;color:var(--ink2);margin-top:6px}
 .snack{position:fixed;left:24px;bottom:24px;background:#1f1f1f;color:#f2f2f2;border-radius:4px;padding:14px 16px;display:flex;align-items:center;gap:24px;box-shadow:0 3px 5px -1px rgba(0,0,0,.2),0 6px 10px 0 rgba(0,0,0,.14);z-index:20;max-width:calc(100vw - 48px)}
 .snack button{border:0;background:transparent;color:#a8c7fa;font-weight:500;cursor:pointer;padding:0}
 
-@media (max-width:900px){
+@media (max-width:1100px){
+  .app{grid-template-columns:208px minmax(0,1fr)}
+  .brand{width:184px}
+  .compose-btn{padding:0 18px 0 14px}
+  .nav{padding-left:18px}
+  .row .from{width:140px}
+}
+@media (max-width:720px){
   .app{grid-template-columns:1fr;grid-template-rows:auto auto minmax(0,1fr);height:auto}
   .appbar{grid-column:1}.brand{width:auto}.search{display:none}
-  .side{display:flex;gap:6px;overflow-x:auto;padding:0 8px 8px;align-items:center}
+  .side{flex-direction:row;gap:6px;overflow-x:auto;padding:0 8px 8px;align-items:center}
+  .boxes{display:flex;margin:0;padding:0;gap:6px}
+  .box{padding:5px 10px;white-space:nowrap}
+  .box span{display:none}
+  .demobar{padding:10px 12px}
+  .seg{width:100%}.seg button{flex:1;padding:8px 6px}
+  .appbar{padding:8px}.appbar .who span{display:none}
+  .brand{font-size:18px}
   .side h4,.compose-btn{display:none}
   .nav{width:auto;margin:0;border-radius:16px;padding:0 14px;white-space:nowrap;gap:8px;flex:none}
   .main{margin:0 8px 8px;min-height:70vh}
