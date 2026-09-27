@@ -32,7 +32,7 @@ def test_close_question_reuses_the_approved_answer(firm):
     res = d.handle(mail("My bag did not arrive in Chicago, where is it?"))
     assert res.route == "reuse"
     assert res.draft.startswith(REVIEW_LINE)
-    assert "AI/draft-ready" in res.labels and any(l.startswith("AI/confidence-") for l in res.labels)
+    assert len(res.labels) == 1 and res.labels[0].startswith("AI/draft-ready/")   # one label per email
     # The adapted draft was built from the redacted answer: the prompt carried [[name]], not a name.
     assert "[[name]]" in d.model.calls[0][1]
     assert conn.execute("SELECT route FROM drafts").fetchone()[0] == "reuse"

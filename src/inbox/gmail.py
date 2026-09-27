@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import re
 import sqlite3
 import time
 from dataclasses import dataclass
@@ -29,10 +30,17 @@ from .rules import Rule
 
 # Read, label, and manage drafts. Nothing in this code uses it to send.
 SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
+# Parents first: Gmail nests "AI/draft-ready/high" under "AI/draft-ready" only if it exists.
 LABELS = [
-    "AI/draft-ready", "AI/needs-approval", "AI/no-answer",
-    "AI/confidence-high", "AI/confidence-medium", "AI/confidence-low", "AI/automated", "AI/digest",
+    "AI", "AI/draft-ready", "AI/draft-ready/high", "AI/draft-ready/medium", "AI/draft-ready/low",
+    "AI/needs-approval", "AI/no-answer", "AI/automated", "AI/context-added",
 ]
+# Labels earlier versions created; removed so every email has exactly one AI label.
+OBSOLETE_LABELS = [
+    "AI/confidence-high", "AI/confidence-medium", "AI/confidence-low", "AI/needs-authority", "AI/digest",
+]
+NOTE_SUBJECT = re.compile(r"^\s*(note|policy)\s*:\s*(?P<title>.+?)\s*$", re.I)
+NOTE_DAYS = re.compile(r"\bfor (\d{1,3}) days?\b", re.I)
 
 STATE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS gmail_state (key TEXT PRIMARY KEY, value TEXT);
@@ -47,6 +55,11 @@ CREATE TABLE IF NOT EXISTS gmail_threads (
     status       TEXT NOT NULL DEFAULT 'open'   -- open | sent | closed
 );
 """
+
+
+def _gone(e: Exception) -> bool:
+    """Gmail's 'not found': the message was deleted, or it was a draft that got sent."""
+    return "404" in str(e) or "notFound" in str(e) or isinstance(e, KeyError)
 
 
 def _hash(text: str) -> str:
@@ -146,7 +159,12 @@ class Mailbox:
         r = self._svc.users().threads().get(userId="me", id=thread_id, format="minimal").execute()
         out = []
         for m in r.get("messages", []):
-            full = self._svc.users().messages().get(userId="me", id=m["id"], format="raw").execute()
+            try:
+                full = self._svc.users().messages().get(userId="me", id=m["id"], format="raw").execute()
+            except Exception as e:
+                if _gone(e):
+                    continue      # a draft that was sent or deleted a moment ago
+                raise
             mail = parse(base64.urlsafe_b64decode(full["raw"]))
             out.append({"id": m["id"], "labels": m.get("labelIds", []), "at": int(m["internalDate"]), "mail": mail})
         return sorted(out, key=lambda x: x["at"])
@@ -155,6 +173,9 @@ class Mailbox:
     def ensure_labels(self) -> None:
         existing = self._svc.users().labels().list(userId="me").execute().get("labels", [])
         self._label_ids = {l["name"]: l["id"] for l in existing}
+        for name in OBSOLETE_LABELS:
+            if name in self._label_ids:
+                self._svc.users().labels().delete(userId="me", id=self._label_ids.pop(name)).execute()
         for name in LABELS:
             if name not in self._label_ids:
                 made = self._svc.users().labels().create(
@@ -232,8 +253,13 @@ def poll_once(mb: Mailbox, drafter: Drafter, conn: sqlite3.Connection, firm: Fir
     for msg_id in ids:
         if conn.execute("SELECT 1 FROM gmail_threads WHERE message_id = ?", (msg_id,)).fetchone():
             continue   # already handled: restarts never process a mail twice
+        try:
+            mail, meta = mb.get(msg_id)
+        except Exception as e:
+            if _gone(e):
+                continue          # sent drafts and deleted mail vanish; nothing to handle
+            raise
         rep.seen += 1
-        mail, meta = mb.get(msg_id)
         thread_id = meta["threadId"]
         received = datetime.fromtimestamp(int(meta["internalDate"]) / 1000, tz=timezone.utc)
         def skip(why: str) -> None:
@@ -244,6 +270,12 @@ def poll_once(mb: Mailbox, drafter: Drafter, conn: sqlite3.Connection, firm: Fir
                     "VALUES (?,?,NULL,?, 'closed')", (msg_id, thread_id, datetime.now(timezone.utc).isoformat()))
             log(f"[gmail] skipped {mail.subject!r}: {why}")
 
+        note = NOTE_SUBJECT.match(mail.subject or "")
+        if mail.from_addr == mb.me and note:
+            add_context_from_mail(conn, drafter, mail, note, received)
+            mb.label(msg_id, ["AI/context-added"])
+            skip(f"context added: {note.group('title')}")
+            continue
         if mail.from_addr == mb.me:
             skip("our own message")
             continue
@@ -304,6 +336,7 @@ def poll_once(mb: Mailbox, drafter: Drafter, conn: sqlite3.Connection, firm: Fir
         log(f"[gmail] {res.route:8s} {mail.subject!r} from {mail.from_addr}")
     _state(conn, "history_id", latest)
     rep.sent_captured = capture_sent(mb, conn, firm, rules, log)
+    sync_action_list(mb, conn, log)
     return rep
 
 
@@ -329,6 +362,90 @@ def capture_sent(mb: Mailbox, conn: sqlite3.Connection, firm: Firm, rules: list[
         n += 1
         log(f"[gmail] captured sent reply in thread {row['thread_id']}")
     return n
+
+
+def add_context_from_mail(conn, drafter: Drafter, mail: Mail, note: re.Match, received: datetime) -> int:
+    """'Note: Heating outage Block C' sent to the support inbox from itself becomes a
+    dated note (14 days, or 'for N days' in the subject); 'Policy: ...' a standing page.
+    Only the support address itself can do this, so a customer cannot plant context."""
+    from .docs import add_doc
+
+    title = NOTE_DAYS.sub("", note.group("title")).strip(" -,")
+    days = NOTE_DAYS.search(note.group("title"))
+    kind = "standing" if note.group(1).lower() == "policy" else "note"
+    with conn:
+        doc_id = add_doc(conn, kind, title, mail.body or title, created_at=received,
+                         expires_in_days=int(days.group(1)) if days else None)
+    drafter.refresh_docs()
+    return doc_id
+
+
+# ---- The action list, as a draft in the support inbox --------------------------------
+
+ACTION_SUBJECT = "Action list (kept up to date by the support assistant)"
+_ROW_ID = re.compile(r"#(\d+)\b")
+
+
+def action_list_text(conn: sqlite3.Connection, now: datetime | None = None) -> tuple[str, list[int]]:
+    now = now or datetime.now(timezone.utc)
+    rows = actions.open_rows(conn)
+
+    def who(r) -> str:
+        m = conn.execute("SELECT author, text FROM messages WHERE thread_id = ? AND inbound = 1 ORDER BY created_at LIMIT 1",
+                         (r["thread_id"],)).fetchone() if r["thread_id"] else None
+        if not m:
+            return ""
+        subject = (m["text"] or "").split("\n", 1)[0][:60]
+        return f"  ({m['author']}, \"{subject}\")"
+
+    def line(r) -> str:
+        if r["due_at"]:
+            due = datetime.fromisoformat(r["due_at"])
+            when = ("OVERDUE, was due " if due < now else "due ") + due.strftime("%a %d %b %H:%M")
+        else:
+            when = r["due_text"] or ""
+        return f"#{r['id']}  {r['what']}" + (f"  [{when}]" if when else "") + who(r)
+
+    parts = [
+        f"Updated {now:%a %d %b %H:%M} UTC. Delete a line when it is done: it closes on the next check.",
+        "",
+    ]
+    for title, kind in (("PROMISES MADE TO CUSTOMERS", "commitment"), ("THINGS TO LOOK UP", "check"), ("SPIKES", "spike")):
+        items = [r for r in rows if r["kind"] == kind]
+        if items:
+            parts += [title] + [line(r) for r in items] + [""]
+    if len(parts) == 2:
+        parts.append("Nothing open.")
+    return "\n".join(parts).rstrip() + "\n", [r["id"] for r in rows]
+
+
+def sync_action_list(mb: Mailbox, conn: sqlite3.Connection, log=print) -> int:
+    """Keep one draft in the support inbox that is the team's to-do list. Lines a person
+    deleted from it are marked done; then it is rewritten if anything changed.
+    Returns how many rows were closed."""
+    draft_id = _state(conn, "action_draft")
+    written = [int(x) for x in (_state(conn, "action_ids") or "").split(",") if x]
+    closed = 0
+    if draft_id:
+        current = mb.draft_text(draft_id)
+        if current is None:
+            draft_id = None          # someone deleted or sent it: make a fresh one
+        else:
+            still_there = {int(x) for x in _ROW_ID.findall(current)}
+            for rid in written:
+                if rid not in still_there:
+                    with conn:
+                        actions.mark_done(conn, rid)
+                    closed += 1
+            if closed:
+                log(f"[gmail] {closed} action(s) ticked off in the action list draft")
+    text, ids = action_list_text(conn)
+    if draft_id and ids == written and not closed:
+        return closed             # nothing changed: leave the draft alone
+    draft_id = mb.put_draft(to=mb.me, subject=ACTION_SUBJECT, body=text, draft_id=draft_id)
+    _state(conn, "action_draft", draft_id)
+    _state(conn, "action_ids", ",".join(map(str, ids)))
+    return closed
 
 
 def digest_draft(mb: Mailbox, conn: sqlite3.Connection, firm: Firm) -> str | None:

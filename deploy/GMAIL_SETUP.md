@@ -48,6 +48,24 @@ To see the action list and context page at the same time:
 python -m inbox.app --firm demo      # http://127.0.0.1:8000
 ```
 
+## Working with it inside Gmail
+
+- **Labels.** Each email gets exactly one: `AI/draft-ready/high`, `/medium` or `/low` (a
+  draft is waiting in the thread), `AI/needs-approval` (a lead must decide, or it was not
+  drafted at all, like a legal threat), `AI/no-answer` (nothing to draft from) or
+  `AI/automated` (auto-replies and newsletters, left alone).
+- **The action list** is a draft in your Drafts folder called "Action list (kept up to
+  date by the support assistant)". It lists promises with their deadlines, things to look
+  up and spikes. Delete a line when it is done; the next check marks it done and rewrites
+  the list. Nobody needs to send it.
+- **Adding context.** Email the support address from itself with a subject starting
+  `Note:` (for example `Note: Heating outage Block C for 3 days`). The body becomes a dated
+  note the next drafts use, gone after 14 days or the days you give. `Policy:` adds a
+  permanent page instead. Only the support address itself can do this.
+- **Onboarding an existing mailbox.** `python -m inbox --firm demo gmail-import --months 12`
+  reads the conversations the team already replied to and turns them into the knowledge
+  base, with dates, per-customer history and the team's tone.
+
 ## What it can and cannot do in your account
 
 - It can read mail, create and update drafts, and add labels.

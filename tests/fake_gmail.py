@@ -72,6 +72,12 @@ class FakeGmail:
         raw = base64.urlsafe_b64decode(self.draftbox[draft_id]["message"]["raw"])
         return message_from_bytes(raw, policy=policy.default).get_content()
 
+    def draft_subject(self, draft_id: str) -> str:
+        from email import message_from_bytes, policy
+
+        raw = base64.urlsafe_b64decode(self.draftbox[draft_id]["message"]["raw"])
+        return str(message_from_bytes(raw, policy=policy.default)["Subject"])
+
     def edit_draft(self, draft_id: str, text: str) -> None:
         from email import message_from_bytes, policy
 
@@ -184,6 +190,12 @@ class _Drafts:
 class _Labels:
     def __init__(self, g: FakeGmail):
         self.g = g
+
+    def delete(self, userId, id):
+        def run():
+            self.g.labelmap = {n: i for n, i in self.g.labelmap.items() if i != id}
+            return {}
+        return _Call(run)
 
     def list(self, userId):
         return _Call(lambda: {"labels": [{"name": n, "id": i} for n, i in self.g.labelmap.items()]})

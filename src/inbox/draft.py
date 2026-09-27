@@ -460,7 +460,6 @@ class Drafter:
                 body, matches = apply_placeholders(res.draft, self.rules, translate=translate)
                 res.matches += matches
                 if any(m.action == "placeholder" for m in matches):
-                    res.labels.append("AI/needs-approval")
                     res.notes.append("commitments were replaced with NEEDS APPROVAL placeholders")
                 for m in matches:
                     if m.action == "track":
@@ -472,8 +471,7 @@ class Drafter:
                 # Only what the agent must act on goes in the draft; the rest is on the dashboard.
                 inline = "".join(f"\n\n[[AGENT NOTE: {n}]]" for n in res.inline)
                 res.draft = f"{REVIEW_LINE}\n\n{body}{inline}".rstrip()
-        if res.confidence:
-            res.labels.append(f"AI/confidence-{res.confidence}")
+        res.labels = [final_label(res)]
         if persist:
             self._persist(mail, res)
         return res
@@ -501,6 +499,16 @@ class Drafter:
             )
             if res.draft and self.run is None:
                 actions.record_checks(self.conn, res.draft, customer_id=mail.customer_id, thread_id=mail.thread_id)
+
+
+def final_label(res: Result) -> str:
+    """Exactly one label per email. Confidence is a sub-label of draft-ready, so an
+    email never sits in two places at once."""
+    if res.route == "blocked" or (res.draft and "[[NEEDS APPROVAL" in res.draft):
+        return "AI/needs-approval"
+    if res.draft and res.route in ("reuse", "docs"):
+        return f"AI/draft-ready/{res.confidence or 'low'}"
+    return "AI/no-answer"
 
 
 def result_json(res: Result) -> dict:

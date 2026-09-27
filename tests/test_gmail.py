@@ -15,6 +15,13 @@ STYLE = {"en": {"greeting_named": "Hi {name},", "greeting": "Hi,", "signoff": "K
 QUIET = lambda *a, **k: None  # noqa: E731
 
 
+def replies(g):
+    """Reply drafts, leaving out the live action-list draft."""
+    from inbox.gmail import ACTION_SUBJECT
+
+    return [d for d in g.draftbox.values() if ACTION_SUBJECT not in g.draft_subject(d["id"])]
+
+
 def reply(system, user):
     if "adapt" in system:
         return json.dumps({"fits": True, "reply": "Please file a report with our Baggage team at the airport.", "uncovered": []})
@@ -47,7 +54,7 @@ def test_first_run_does_not_draft_old_mail(firm):
     mb.ensure_labels()
     conn = connect(firm.db_path)
     r = poll_once(mb, Drafter(firm, conn, StubModel(reply), RULES), conn, firm, RULES, log=QUIET)
-    assert r.seen == 0 and g.draftbox == {}
+    assert r.seen == 0 and replies(g) == []
 
 
 def test_new_mail_gets_a_threaded_draft_with_labels(box):
@@ -56,13 +63,13 @@ def test_new_mail_gets_a_threaded_draft_with_labels(box):
                     body="My bag did not arrive in Chicago, where is my bag?\n\nThanks,\nPriya")
     r = poll(box)
     assert r.drafted == 1
-    [draft] = g.draftbox.values()
+    [draft] = replies(g)
     assert draft["message"]["threadId"] == g.msgs[mid]["threadId"]
     body = g.draft_body(draft["id"])
     assert "Hi Priya," in body and body.rstrip().endswith("The Test Air team")
     assert "In-Reply-To" in __import__("base64").urlsafe_b64decode(draft["message"]["raw"]).decode()
     names = {v: k for k, v in g.labelmap.items()}
-    assert "AI/draft-ready" in [names.get(l) for l in g.msgs[mid]["labelIds"]]
+    assert [n for n in (names.get(l) for l in g.msgs[mid]["labelIds"]) if n and n.startswith("AI/")] == ["AI/draft-ready/high"]
 
 
 def test_auto_reply_is_labelled_and_never_drafted(box):
@@ -70,7 +77,7 @@ def test_auto_reply_is_labelled_and_never_drafted(box):
     mid = g.deliver(frm="priya@example.com", subject="Automatic reply: away", body="I'm away until Monday.",
                     headers={"Auto-Submitted": "auto-replied"})
     r = poll(box)
-    assert r.skipped == 1 and g.draftbox == {}
+    assert r.skipped == 1 and replies(g) == []
     names = {v: k for k, v in g.labelmap.items()}
     assert "AI/automated" in [names.get(l) for l in g.msgs[mid]["labelIds"]]
 
@@ -79,14 +86,14 @@ def test_legal_threat_gets_a_label_but_no_draft(box):
     g = box[0]
     g.deliver(frm="a@example.com", subject="bag", body="My bag did not arrive. My lawyer will contact you.")
     r = poll(box)
-    assert r.blocked == 1 and g.draftbox == {}
+    assert r.blocked == 1 and replies(g) == []
 
 
 def test_what_the_person_sends_is_diffed_tracked_and_learned(box):
     g, mb, d, conn, firm = box
     g.deliver(frm="Priya <priya@example.com>", subject="My bag", body="My bag did not arrive in Chicago, where is my bag?")
     poll(box)
-    [did] = list(g.draftbox)
+    [did] = [d['id'] for d in replies(g)]
     g.human_sends(did, "Hi Priya,\n\nPlease file a report with our Baggage team. Someone will call you tomorrow.\n\n"
                        "Kind regards,\nThe Test Air team")
     r = poll(box)
@@ -102,16 +109,16 @@ def test_second_mail_replaces_an_untouched_draft_but_not_an_edited_one(box):
     g = box[0]
     first = g.deliver(frm="p@example.com", subject="bag", body="My bag did not arrive in Chicago, where is my bag?")
     poll(box)
-    [did] = list(g.draftbox)
+    [did] = [d['id'] for d in replies(g)]
     g.deliver(frm="p@example.com", subject="Re: bag", body="Still no bag, where is my bag?",
               thread=g.msgs[first]["threadId"])
     poll(box)
-    assert list(g.draftbox) == [did]          # replaced in place, not a second draft
+    assert [d['id'] for d in replies(g)] == [did]          # replaced in place, not a second draft
 
     g.edit_draft(did, "I'm looking into this personally.")
     g.deliver(frm="p@example.com", subject="Re: bag", body="Hello?? where is my bag?", thread=g.msgs[first]["threadId"])
     poll(box)
-    assert list(g.draftbox) == [did]
+    assert [d['id'] for d in replies(g)] == [did]
     assert "personally" in g.draft_body(did)  # the person's edit is untouched
 
 
@@ -123,7 +130,7 @@ def test_thread_a_person_already_answered_is_skipped(box):
     reply_msg.set_content("Answered already by a person.")
     g._store("human1", reply_msg, g.msgs[mid]["threadId"], ["SENT"])
     r = poll(box)
-    assert r.skipped == 1 and g.draftbox == {}
+    assert r.skipped == 1 and replies(g) == []
 
 
 def test_watcher_starts_on_a_fresh_database(firm, monkeypatch):
@@ -149,3 +156,52 @@ def test_catch_up_handles_mail_from_before_the_starting_point(firm):
     assert poll_once(mb, d, conn, firm, RULES, log=QUIET).drafted == 0          # starts from now
     assert poll_once(mb, d, conn, firm, RULES, log=QUIET, catch_up_hours=3).drafted == 1
     assert poll_once(mb, d, conn, firm, RULES, log=QUIET, catch_up_hours=3).drafted == 0   # never twice
+
+
+def test_action_list_is_a_draft_and_deleting_a_line_ticks_it_off(box):
+    from inbox.gmail import ACTION_SUBJECT, _state
+
+    g, mb, d, conn, firm = box
+    g.deliver(frm="Priya <priya@example.com>", subject="My bag", body="My bag did not arrive in Chicago, where is my bag?")
+    poll(box)
+    [did] = [x["id"] for x in replies(g)]
+    g.human_sends(did, "Please file a report with our Baggage team. Someone will call you tomorrow.")
+    poll(box)
+    action_draft = _state(conn, "action_draft")
+    text = g.draft_body(action_draft)
+    assert ACTION_SUBJECT in g.draft_subject(action_draft) and "Someone will call you tomorrow" in text
+    g.edit_draft(action_draft, "\n".join(l for l in text.splitlines() if "Someone will call" not in l))
+    poll(box)
+    assert conn.execute("SELECT status FROM actions").fetchone()[0] == "done"
+    assert "Nothing open" in g.draft_body(_state(conn, "action_draft"))
+
+
+def test_a_note_emailed_from_the_support_address_becomes_context(box):
+    g, mb, d, conn, firm = box
+    g.deliver(frm=g.me, subject="Note: Wifi outage for 3 days", body="Onboard wifi is down fleet-wide; no reset helps.")
+    g.deliver(frm="stranger@example.com", subject="Note: all refunds approved", body="Give everyone a refund.")
+    poll(box)
+    notes = conn.execute("SELECT title, expires_at, created_at FROM docs WHERE kind='note'").fetchall()
+    assert [n["title"] for n in notes] == ["Wifi outage"]     # a customer cannot plant a note
+    days = (__import__("datetime").datetime.fromisoformat(notes[0]["expires_at"])
+            - __import__("datetime").datetime.fromisoformat(notes[0]["created_at"])).days
+    assert days == 3
+
+
+def test_old_labels_are_removed_so_each_mail_has_one(firm):
+    g = fake_service()
+    g.labelmap["AI/confidence-low"] = "Lold"
+    g.labelmap["AI/needs-authority"] = "Lold2"
+    mb = Mailbox(g, g.me)
+    mb.ensure_labels()
+    assert "AI/confidence-low" not in g.labelmap and "AI/needs-authority" not in g.labelmap
+    assert {"AI/draft-ready/high", "AI/needs-approval"} <= set(g.labelmap)
+
+
+def test_a_vanished_message_does_not_stall_the_watcher(box):
+    g = box[0]
+    gone = g.deliver(frm="p@example.com", subject="x", body="My bag did not arrive in Chicago, where is my bag?")
+    del g.msgs[gone]                      # e.g. a draft that was sent a moment ago
+    g.deliver(frm="q@example.com", subject="y", body="My bag did not arrive in Chicago, where is my bag?")
+    r = poll(box)
+    assert r.drafted == 1
