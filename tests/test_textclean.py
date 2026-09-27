@@ -48,3 +48,9 @@ def test_redact_vocative_name_but_not_common_words():
 def test_redact_leaves_plain_words_alone():
     text = "Which iOS version is your device running right now?"
     assert redact(text) == text
+
+
+def test_redact_accented_and_non_english_greetings():
+    assert "Tomás" not in redact("Hi Tomás, we understand.")
+    assert redact("Hoi Daan, na je vertrek.") == "Hoi [[name]], na je vertrek."
+    assert redact("Hallo Lena, nach dem Auszug.") == "Hallo [[name]], nach dem Auszug."

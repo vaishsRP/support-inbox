@@ -83,7 +83,8 @@ CREATE TABLE IF NOT EXISTS docs (
     body        TEXT NOT NULL,
     created_at  TEXT NOT NULL,
     expires_at  TEXT,                      -- notes only; null for standing documents
-    retired     INTEGER NOT NULL DEFAULT 0
+    retired     INTEGER NOT NULL DEFAULT 0,
+    owner       TEXT                       -- null = the whole team; the public demo scopes notes to one visitor
 );
 CREATE TABLE IF NOT EXISTS doc_chunks (
     id      INTEGER PRIMARY KEY,
@@ -109,4 +110,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
     cols = {r[1] for r in conn.execute("PRAGMA table_info(drafts)")}
     if "run" not in cols:
         conn.execute("ALTER TABLE drafts ADD COLUMN run TEXT")
+        conn.commit()
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(docs)")}
+    if "owner" not in cols:
+        conn.execute("ALTER TABLE docs ADD COLUMN owner TEXT")
         conn.commit()

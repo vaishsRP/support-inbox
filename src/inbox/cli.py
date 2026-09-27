@@ -34,9 +34,14 @@ def main(argv: list[str] | None = None) -> int:
     firm = load_firm(args.firm)
 
     if args.cmd == "import":
-        from .corpus import import_twcs
+        if firm.corpus_kind == "helpdesk":
+            from .helpdesk import import_helpdesk
 
-        import_twcs(firm)
+            import_helpdesk(firm)
+        else:
+            from .corpus import import_twcs
+
+            import_twcs(firm)
     elif args.cmd == "explore":
         from .explore import run
 

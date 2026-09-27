@@ -83,7 +83,7 @@ async def _form(request: Request) -> dict[str, str]:
     return {k: v[0] for k, v in parse_qs(raw, keep_blank_values=True).items()}
 
 
-def create_app(firm_key: str | None = None, firm: Firm | None = None, model=None) -> FastAPI:
+def create_app(firm_key: str | None = None, firm: Firm | None = None, model=None, demo: bool = False) -> FastAPI:
     firm = firm or load_firm(firm_key or "americanair")
     app = FastAPI(title="Support inbox", docs_url="/api/docs")
     conn = connect(firm.db_path)
@@ -104,9 +104,16 @@ def create_app(firm_key: str | None = None, firm: Firm | None = None, model=None
             state["drafter"] = Drafter(firm, db(), model or OpenAICompatible(), rules)
         return state["drafter"]
 
+    if demo:
+        from .demo import mount
+
+        mount(app, firm, db, drafter, rules)
+
     # ---- Action list --------------------------------------------------------------
     @app.get("/", response_class=HTMLResponse)
     def action_list():
+        if demo:
+            return RedirectResponse("/demo", status_code=307)
         c = db()
         now = _now()
         rows = actions.open_rows(c)
@@ -324,9 +331,10 @@ def main() -> None:  # pragma: no cover
     ap = argparse.ArgumentParser()
     ap.add_argument("--firm", default=os.environ.get("INBOX_FIRM", "americanair"))
     ap.add_argument("--host", default=os.environ.get("INBOX_HOST", "127.0.0.1"))
-    ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8000)))
+    ap.add_argument("--demo", action="store_true", default=bool(os.environ.get("INBOX_DEMO")))
     a = ap.parse_args()
-    uvicorn.run(create_app(a.firm), host=a.host, port=a.port)
+    uvicorn.run(create_app(a.firm, demo=a.demo), host=a.host, port=a.port)
 
 
 if __name__ == "__main__":  # pragma: no cover

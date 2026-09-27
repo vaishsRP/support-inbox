@@ -35,11 +35,11 @@ _BOOKING = re.compile(r"\b(?=[A-Z0-9]{6}\b)(?=[A-Z0-9]*\d)(?=[A-Z0-9]*[A-Z])[A-Z
 _CASE = re.compile(r"\b(case|ticket|reference|ref|order)\s*(?:number|no\.?|#)?\s*:?\s*#?(\d{5,})\b", re.I)
 _LONG_DIGITS = re.compile(r"(?<![\w\]])\d{7,}(?![\w\[])")
 
-_NAME_WORD = r"([A-Z][a-z]{1,14}(?:\s[A-Z]\.)?)"
+_NAME_WORD = r"([A-ZÀ-ÖØ-Þ][a-zß-öø-ÿ]{1,14}(?:\s[A-Z]\.)?)"
 _GREETING = re.compile(
     r"\b(Hi|Hey|Hello|Hiya|Howdy|Thanks|Thank you|Sorry|Aw+|Oh no|Welcome|Congrats|"
     r"Congratulations|Good morning|Good afternoon|Good evening|Happy to help|Help is here|"
-    r"Help's here|Yes|No|Ok|Okay|Sure|Absolutely|Of course),?\s+" + _NAME_WORD + r"(?=\s*[!.,?])"
+    r"Help's here|Yes|No|Ok|Okay|Sure|Absolutely|Of course|Dear|Hoi|Hallo|Beste|Dag|Liebe|Lieber|Hola|Bonjour|Salut|Ciao|Olá),?\s+" + _NAME_WORD + r"(?=\s*[!.,?])"
 )
 # "..., John." or "..., Chris!" right before sentence end: a direct address.
 _VOCATIVE = re.compile(r",\s" + _NAME_WORD + r"(?=\s*[!.?](?:\s|$))")

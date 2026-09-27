@@ -1,0 +1,27 @@
+# The demo's made-up company. Everything about it is invented; see demo/corpus/README.md.
+
+firm:
+  name: Harbourbrook Student Homes (made-up demo company)
+  timezone: Europe/Amsterdam
+
+corpus:
+  kind: helpdesk
+  path: demo/corpus/pairs.yaml
+  brand_handle: harbourbrook
+
+public_numbers:
+  - "+31 20 555 0100"
+  - "+31 20 555 0199"
+
+docs_dir: demo/corpus/docs
+
+data_dir: data/demo
+
+# Provisional until labelled, like every firm starts. The demo corpus is small and
+# written in one voice, so its similarities sit higher than the Twitter corpus.
+thresholds:
+  reuse: 0.9
+  docs: 0.84
+  high: 0.94
+  medium: 0.92
+  provisional: true

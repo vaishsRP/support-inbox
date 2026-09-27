@@ -66,6 +66,8 @@ class Incoming:
     received_at: datetime
     # Earlier messages in this thread, oldest first: ("customer" | "firm", text)
     thread: list[tuple[str, str]] = field(default_factory=list)
+    # Public demo only: whose private notes may be used. None = team-wide notes only.
+    owner: str | None = None
 
 
 @dataclass
@@ -191,7 +193,7 @@ class Drafter:
         vec = encode([question])[0]
         sent_here = [redact(clean(t), self.firm.public_numbers) for who, t in mail.thread if who == "firm"]
         hits = self.answers.search(vec=vec, k=3, before=mail.received_at, exclude_answers=sent_here)
-        doc_hits = self._docs(mail.received_at).search(vec=vec, k=3)
+        doc_hits = self._docs(mail.received_at).search(vec=vec, k=3, owner=mail.owner)
         best = hits[0].sim if hits else 0.0
         best_doc = doc_hits[0].sim if doc_hits else 0.0
 
@@ -270,12 +272,20 @@ class Drafter:
         )
 
     def _refuse(self, mail, question, hits, doc_hits, best, best_doc) -> Result:
-        reason = (
-            f"nothing close enough: best past answer {best:.2f} (needs {self.t.reuse:.2f}), "
-            f"best document {best_doc:.2f} (needs {self.t.docs:.2f})"
-            if hits or doc_hits
-            else "no past answers or documents to draw on"
-        )
+        tried = []
+        if hits and best >= self.t.reuse:
+            tried.append("the closest past answer is about a different problem")
+        if doc_hits and best_doc >= self.t.docs:
+            tried.append("the closest documents do not cover it")
+        if tried:
+            reason = "nothing that answers it: " + " and ".join(tried)
+        elif hits or doc_hits:
+            reason = (
+                f"nothing close enough: best past answer {best:.2f} (needs {self.t.reuse:.2f}), "
+                f"best document {best_doc:.2f} (needs {self.t.docs:.2f})"
+            )
+        else:
+            reason = "no past answers or documents to draw on"
         notes = []
         for h in hits[:3]:
             notes.append(f"related past thread {h.thread_id} ({h.sim:.2f}): \"{h.question[:120]}\"")

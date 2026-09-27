@@ -62,6 +62,7 @@ def add_doc(
     *,
     created_at: datetime | None = None,
     expires_in_days: int | None = None,
+    owner: str | None = None,
 ) -> int:
     if kind not in ("standing", "note"):
         raise ValueError("kind must be 'standing' or 'note'")
@@ -70,8 +71,8 @@ def add_doc(
     if kind == "note":
         expires = created + timedelta(days=expires_in_days or DEFAULT_NOTE_DAYS)
     cur = conn.execute(
-        "INSERT INTO docs (kind, title, body, created_at, expires_at) VALUES (?,?,?,?,?)",
-        (kind, title.strip(), body.strip(), created.isoformat(), expires.isoformat() if expires else None),
+        "INSERT INTO docs (kind, title, body, created_at, expires_at, owner) VALUES (?,?,?,?,?,?)",
+        (kind, title.strip(), body.strip(), created.isoformat(), expires.isoformat() if expires else None, owner),
     )
     doc_id = cur.lastrowid
     conn.executemany(
@@ -100,7 +101,7 @@ class DocIndex:
         self.at = at or datetime.now(timezone.utc)
         at_s = self.at.isoformat()
         self.rows = conn.execute(
-            """SELECT c.id AS chunk_id, c.text, d.id AS doc_id, d.kind, d.title, d.created_at
+            """SELECT c.id AS chunk_id, c.text, d.id AS doc_id, d.kind, d.title, d.created_at, d.owner
                FROM doc_chunks c JOIN docs d ON d.id = c.doc_id
                WHERE d.retired = 0 AND d.created_at <= ? AND (d.expires_at IS NULL OR d.expires_at > ?)""",
             (at_s, at_s),
@@ -111,14 +112,21 @@ class DocIndex:
     def __len__(self) -> int:
         return len(self.rows)
 
-    def search(self, text: str | None = None, vec: np.ndarray | None = None, k: int = 3) -> list[DocHit]:
+    def search(
+        self, text: str | None = None, vec: np.ndarray | None = None, k: int = 3, owner: str | None = None
+    ) -> list[DocHit]:
+        """Documents for the whole team, plus notes owned by `owner` (the public demo
+        keeps each visitor's notes to themselves)."""
         if not len(self.rows):
             return []
         if vec is None:
             vec = encode([text])[0]
-        sims = self.vecs @ vec
+        visible = np.array([r["owner"] is None or r["owner"] == owner for r in self.rows])
+        sims = np.where(visible, self.vecs @ vec, -np.inf)
         out = []
         for i in np.argsort(-sims)[:k]:
+            if not np.isfinite(sims[i]):
+                break
             r = self.rows[i]
             out.append(DocHit(r["doc_id"], r["chunk_id"], r["kind"], r["title"], r["text"], r["created_at"], float(sims[i])))
         return out

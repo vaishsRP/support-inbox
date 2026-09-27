@@ -1,0 +1,87 @@
+# Categories for Harbourbrook Student Homes (made-up demo company).
+# Derived by clustering real questions (python -m inbox categorize). The names below are
+# Named by hand from the examples below.
+# ids must stay as they are: they match the cluster centroids in data/<firm>/categories.npz.
+
+categories:
+- id: 0
+  name: Bikes
+  size: 2
+  keywords: []
+  examples:
+  - my bike was removed from the front of the building!! where is it
+  - where can i put my bike
+  common_causes: []
+- id: 1
+  name: Repairs in a room
+  size: 25
+  keywords:
+  - room
+  - broken
+  - someone
+  examples:
+  - The heating in my room doesnt work since yesterday and its freezing
+  - My door lock is broken and I can't lock my room
+  - moved in yesterday, the mattress is broken and one chair is missing
+  - power went out in my room only, the rest of the corridor has electricity
+  - locked out of my room, key is inside
+  common_causes: []
+- id: 2
+  name: Contract, guests and staying longer
+  size: 9
+  keywords:
+  - stay
+  - room
+  examples:
+  - I'm going home for summer, can a friend stay in my room for 2 months?
+  - I want to stay another semester, can I extend my contract?
+  - I got an internship in another city and need to leave after 3 months, can I cancel?
+  - my parents are visiting, can they sleep in my room 2 nights?
+  - Can I move to a bigger room in the same building?
+  common_causes: []
+- id: 3
+  name: Arriving late
+  size: 1
+  keywords: []
+  examples:
+  - Hi my train is delayed and I will only arrive in Westmere at 17:30 today, office closes at 16. what can I do
+  common_causes: []
+- id: 4
+  name: Deposit and rent
+  size: 20
+  keywords:
+  - deposit
+  - rent
+  - month
+  - moved
+  examples:
+  - hi, i moved out on 31 jan, when do i get my deposit back?
+  - When will the deposit be returned? I need the money for my new place
+  - hey quick q, how long does the deposit take after moving out
+  - Hello, It has been 2 weeks since I left my room and I still didn't receive my deposit. Is there a problem?
+  - my scholarship is late this month, can I pay rent a bit later?
+  common_causes: []
+- id: 5
+  name: Building-wide problems
+  size: 5
+  keywords:
+  - floor
+  examples:
+  - the kitchen on our floor is disgusting, nobody cleans
+  - no hot water in the shower on the 3rd floor
+  - the washing machine number 3 is broken again
+  - no internet on the whole 2nd floor since an hour
+  - party in the kitchen on floor 4 again, it's midnight
+  common_causes: []
+- id: 6
+  name: Keys, arrival and registration
+  size: 11
+  keywords:
+  - keys
+  examples:
+  - I'm arriving on Sunday evening, is someone there to give me the key?
+  - I need a letter to register at the town hall, how do I get it?
+  - Hello, when and where can I pick up my keys? I arrive on 1 february
+  - I lost my key card, what should I do
+  - Hi, my appointment at the gemeente is on thursday and I still don't have the letter
+  common_causes: []
