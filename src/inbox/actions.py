@@ -42,7 +42,8 @@ def add(
             what,
             customer_id,
             thread_id,
-            due_at.isoformat() if due_at else None,
+            # Stored in UTC so deadlines compare correctly whatever zone they were read in.
+            due_at.astimezone(timezone.utc).isoformat() if due_at else None,
             due_text,
             rule,
             origin,

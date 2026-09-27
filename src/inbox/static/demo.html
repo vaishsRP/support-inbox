@@ -57,6 +57,20 @@ svg{flex:none}
 .nav .n{margin-left:auto;font-size:12px;font-weight:700}
 .nav .sw{width:10px;height:10px;border-radius:2px;margin:0 3px}
 .side h4{font-size:16px;font-weight:500;margin:18px 0 6px 26px;color:var(--ink)}
+.side{display:flex;flex-direction:column}
+.boxes{margin:auto 16px 0 16px;padding-top:24px;display:grid;gap:8px}
+.box{display:block;text-align:left;border:1px solid var(--line);background:#fff;padding:10px 12px;cursor:pointer}
+.box b{display:block;font-weight:500;font-size:13px}
+.box span{display:block;color:var(--ink3);font-size:12px}
+.box:hover{border-color:#747775}
+.box[aria-current="true"]{border-color:var(--blue);background:var(--blue-soft)}
+.status{margin:0 0 14px 56px;color:var(--ink3);font-size:13px}
+.status b{color:var(--ink2);font-weight:500}
+.status.block b{color:#d93025}
+.ask{margin:6px 0 0;padding-left:18px;color:var(--ink2)}
+.details{margin:0 0 14px 56px;font-size:13px;color:var(--ink3)}
+.details summary{cursor:pointer}
+.details ul{margin:6px 0 0;padding-left:18px}
 
 .main{background:var(--card);border-radius:16px;margin:0 16px 16px 0;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .toolbar{display:flex;align-items:center;gap:4px;height:48px;padding:0 8px 0 12px;flex:none}
@@ -127,6 +141,7 @@ details.src summary{cursor:pointer}
 .act{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--rowline)}
 .act .w{flex:1;min-width:0;overflow-wrap:anywhere}
 .act .w small{display:block;color:var(--ink3);font-size:12px;margin-top:2px}
+.act .w small a{color:var(--blue);text-decoration:none}.act .w small a:hover{text-decoration:underline}
 .act.closed{opacity:.5}
 .late{color:#d93025;font-weight:500}
 .hint{color:var(--ink3);font-size:13px;padding:8px 0}
@@ -230,12 +245,14 @@ details.doc div{white-space:pre-wrap;color:var(--ink2);margin-top:6px}
   <nav class="side" aria-label="Folders">
     <button class="compose-btn" id="composeBtn"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>Write as a student</button>
     <button class="nav" data-f="inbox" aria-current="true"><svg width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M19 3H4.99C3.88 3 3 3.9 3 5v14c0 1.1.88 2 1.99 2H19c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 12h-4c0 1.66-1.35 3-3 3s-3-1.34-3-3H4.99V5H19v10z"/></svg>Inbox<span class="n" id="nInbox"></span></button>
-    <button class="nav" data-f="actions"><svg width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm-2 14l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Action list<span class="n" id="nActions"></span></button>
-    <button class="nav" data-f="context"><svg width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>Context page</button>
     <h4>Labels</h4>
     <button class="nav" data-f="ready"><span class="sw" style="background:#16a765"></span>AI/draft-ready<span class="n" id="nReady"></span></button>
     <button class="nav" data-f="auth"><span class="sw" style="background:#d93025"></span>AI/needs-authority<span class="n" id="nAuth"></span></button>
     <button class="nav" data-f="none"><span class="sw" style="background:#9aa0a6"></span>AI/no-answer<span class="n" id="nNone"></span></button>
+    <div class="boxes">
+      <button class="box" data-f="actions"><b>Action list</b><span id="nActions">Nothing open</span></button>
+      <button class="box" data-f="context"><b>Context page</b><span>Policies and incident notes</span></button>
+    </div>
   </nav>
 
   <main class="main" id="main"></main>
@@ -245,7 +262,8 @@ details.doc div{white-space:pre-wrap;color:var(--ink2);margin-top:6px}
 const EXAMPLES=[
   {t:"When is my deposit back?",d:"the assistant reuses a past reply",s:"Deposit",b:"Hi, I moved out of my room on 31 August. When will I get my deposit back?"},
   {t:"Deposit back by Friday, please",d:"asks for a promise only finance can make",s:"Urgent: deposit",b:"I moved out 10 days ago and I need my deposit back by this Friday to pay my new landlord. Can you send it this week?"},
-  {t:"Arriving on Sunday night",d:"reuses a past reply",s:"Arrival",b:"Hello! My flight lands on Sunday at 22:00. How do I get my keys?"},
+  {t:"Did my rent payment arrive?",d:"asks you to look it up: lands on the action list",s:"Rent",b:"Hi, did you get my rent for October? I paid on the 1st but haven't had a confirmation.\n\nThanks,\nLina"},
+  {t:"Heating is broken",d:"send the reply and its promise is tracked",s:"No heating",b:"The heating in my room stopped working last night and it's freezing. Can someone come today?"},
   {t:"Parking for my car",d:"nothing covers it, so no draft",s:"Parking",b:"Can I rent a parking space for my car at the building, and what does it cost per month?"},
   {t:"Threaten a lawyer",d:"never drafted, goes to a person",s:"Deduction",b:"You kept 200 euros of my deposit for nothing. My lawyer will contact you if I don't get it back."},
   {t:"In Dutch",d:"answers in Dutch",s:"Sleutel",b:"Hoi, ik kom zaterdag aan. Hoe krijg ik mijn sleutel?"},
@@ -313,7 +331,7 @@ $("#sSend").onclick=()=>{
   $("#sBody").value="";$("#sSubject").value="";
   $("#dot").classList.add("on");renderConvs();counts();
   snack("Message sent.","Open support inbox",()=>{folder="inbox";openId=null;side("support")});
-  api("/demo/api/send",{method:"POST",body:JSON.stringify({sid:SID,subject:s,body:b})})
+  api("/demo/api/send",{method:"POST",body:JSON.stringify({sid:SID,subject:s,body:b,name:studentName()})})
     .then(async r=>{const i=MAILS.indexOf(tmp);if(i>=0)MAILS[i]=r.mail;if(openId===tmp.id)openId=r.mail.id;if(seen.has(tmp.id))seen.add(r.mail.id);await refreshActions()})
     .catch(e=>{tmp.pending=false;tmp.route="failed";tmp.reason=e.message})
     .finally(()=>{counts();if(!$("#vSupport").hidden)render();else $("#dot").classList.add("on")});
@@ -326,13 +344,16 @@ function counts(){
   set("#nReady",MAILS.filter(m=>inF(m,"ready")).length);
   set("#nAuth",MAILS.filter(m=>inF(m,"auth")).length);
   set("#nNone",MAILS.filter(m=>inF(m,"none")).length);
-  set("#nActions",ACTIONS.filter(a=>a.status==="open").length);
+  const open=ACTIONS.filter(a=>a.status==="open");
+  const kinds={commitment:"promise",check:"check",spike:"spike"};
+  const parts=Object.entries(open.reduce((o,a)=>(o[a.kind]=(o[a.kind]||0)+1,o),{})).map(([k,n])=>`${n} ${kinds[k]}${n>1?"s":""}`);
+  $("#nActions").textContent=open.length?parts.join(", ")+" open":"Nothing open";
 }
-document.querySelector(".side").addEventListener("click",ev=>{const b=ev.target.closest(".nav");if(!b)return;folder=b.dataset.f;openId=null;editing=false;render()});
+document.querySelector(".side").addEventListener("click",ev=>{const b=ev.target.closest(".nav,.box");if(!b)return;folder=b.dataset.f;openId=null;editing=false;render()});
 $("#q").addEventListener("input",e=>{query=e.target.value.toLowerCase();folder="inbox";openId=null;render()});
 
 function render(){
-  document.querySelectorAll(".nav").forEach(b=>b.setAttribute("aria-current",String(b.dataset.f===folder)));
+  document.querySelectorAll(".nav,.box").forEach(b=>b.setAttribute("aria-current",String(b.dataset.f===folder)));
   counts();
   if(folder==="actions")return renderActions();
   if(folder==="context")return renderContext();
@@ -374,30 +395,35 @@ function renderThread(){
       <div><div class="meta"><b>${esc(studentName())}</b><span class="em">&lt;student@example.com&gt;</span><span class="t">${new Date(m.at).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</span></div>
       <div class="to">to support</div><div class="body">${esc(m.body)}</div></div></div>`;
   let assist="",draft="";
+  const notes=m.notes||[];
   if(m.pending){
-    assist=`<div class="assist"><div class="ic" style="background:#b06000">…</div><div><b>Preparing a draft</b><div class="sub">Looking for similar past emails and policy pages.</div><div class="skel" style="width:280px"></div><div class="skel" style="width:220px"></div></div></div>`;
+    assist=`<div class="status"><b>Preparing a draft…</b></div><div style="margin-left:56px"><div class="skel" style="width:320px"></div><div class="skel" style="width:260px"></div></div>`;
   }else{
-    const [col,title,desc]=ASSIST[m.route]||["#5f6368",m.route,""];
-    const parts=(m.reason||"").split(" | ");
-    let sub=esc(desc);
-    if(m.route==="blocked")sub=esc(parts[0].replace(/: route to /," → send to "));
-    if(m.route==="refused"){const r=parts[0].replace(/^nothing[^:]*: ?/,"");if(r&&!/^best past answer/.test(r))sub=esc(r.charAt(0).toUpperCase()+r.slice(1))+".";}
-    const notes=!m.draft?parts.slice(1).map(n=>n.replace(/^related past thread \S+ \(([\d.]+)\): /,"Similar past email: ").replace(/^worth asking the customer: /,"Ask the student: ").replace(/^looks like: /,"Looks like: ").replace(/^related document "([^"]+)" \(([\d.]+)\)$/,"Related policy page: $1").replace(/^this customer wrote.*$/,"")).filter(Boolean):[];
+    const reason=(m.reason||"").split(" | ")[0];
+    const asks=notes.filter(n=>n.startsWith("worth asking the customer: ")).map(n=>n.replace("worth asking the customer: ","")).slice(0,2);
     const conf=m.confidence?` · ${m.confidence} confidence`:"";
-    assist=`<div class="assist"><div class="ic" style="background:${col}">✦</div><div><b>${esc(title)}</b><span class="sub">${esc(conf)}</span><div class="sub">${sub}</div>${notes.length?`<ul>${notes.map(n=>`<li>${esc(n)}</li>`).join("")}</ul>`:""}</div></div>`;
+    if(m.route==="reuse")assist=`<div class="status"><b>Draft ready</b> · adapted from an earlier reply${esc(conf)}</div>`;
+    else if(m.route==="docs")assist=`<div class="status"><b>Draft ready</b> · written from the policy pages${esc(conf)}</div>`;
+    else if(m.route==="blocked")assist=`<div class="status block"><b>Not drafted.</b> ${esc(reason.replace(/_/g," ").replace(/: route to /," — this goes to "))}.</div>`;
+    else if(m.route==="refused"){
+      const why=/^nothing that answers it: /.test(reason)?reason.replace(/^nothing that answers it: /,""):"no earlier reply or policy page covers this";
+      assist=`<div class="status"><b>No draft:</b> ${esc(why)}. The assistant didn't guess.${asks.length?`<ul class="ask">${asks.map(q=>`<li>You could ask: ${esc(q)}</li>`).join("")}</ul>`:""}</div>`;
+    }else assist=`<div class="status"><b>No draft:</b> the assistant couldn't finish (the free model tier may be busy).</div>`;
     if(m.draft&&!m.sent){
       draft=`<div class="draft"><div class="dh"><span class="d">Draft</span><span>to ${esc(studentName())}</span></div>
         ${editing?`<textarea id="edit">${esc(m.draft)}</textarea>`:`<div class="rendered" id="rendered" title="Click to edit">${hl(m.draft)}</div>`}
         <div class="da"><button class="send" id="doSend">Send</button>${editing?"":`<span style="color:var(--ink3);font-size:12px">Click the draft to edit it</span>`}</div></div>
-        <div class="key"><span><span class="ph ph-review">yellow</span> delete once read</span><span><span class="ph ph-auth">red</span> needs someone with authority</span><span><span class="ph ph-check">blue</span> look it up</span><span><span class="ph ph-slot">purple</span> fill in</span><span><span class="ph ph-note">grey</span> a note for you</span></div>`;
+        <div class="key"><span><span class="ph ph-review">yellow</span> delete once read</span><span><span class="ph ph-auth">red</span> needs someone with authority</span><span><span class="ph ph-check">blue</span> look it up</span><span><span class="ph ph-note">grey</span> for you, not the student</span></div>`;
     }else if(m.sent){
       const pct=m.edit_similarity==null?null:Math.round((1-m.edit_similarity)*100);
-      draft=`<div class="msg"><div class="avatar" style="width:40px;height:40px;background:#1e8e3e">S</div><div><div class="meta"><b>Harbourbrook support</b><span class="t">just now</span></div><div class="to">to ${esc(studentName())}${pct==null?"":` · you changed ${pct}% of the draft`}</div><div class="body">${esc(m.sent)}</div></div></div>`;
+      draft=`<div class="msg"><div class="avatar" style="width:40px;height:40px;background:#1e8e3e">S</div><div><div class="meta"><b>Harbourbrook support</b><span class="t">just now</span></div><div class="to">to ${esc(studentName())}${pct==null?"":` · you changed ${pct}% of the draft`}</div><div class="body">${esc(m.sent)}</div></div></div>
+        <div class="details">Your reply now counts as an approved answer: a similar email will be drafted from it.</div>`;
     }else{
       draft=`<div class="replybtns"><button class="ghost" id="writeOwn">Reply</button></div>`;
     }
   }
-  let src="";try{const s=JSON.parse(m.sources||"[]");if(s.length)src=`<details class="src"><summary>What the assistant used</summary><ul>${s.map(x=>x.type==="past_answer"?`<li>Past reply #${x.pair_id} (similarity ${x.sim})</li>`:`<li>${esc(x.title)}, ${x.type==="note"?"dated note":"policy page"} (similarity ${x.sim})</li>`).join("")}</ul></details>`}catch(e){}
+  const extra=notes.filter(n=>!n.startsWith("worth asking the customer: ")).map(n=>n.replace(/^related past thread \S+ \(([\d.]+)\): /,"Similar earlier email: ").replace(/^related document "([^"]+)" \(([\d.]+)\)$/,"Related policy page: $1").replace(/^looks like: /,"Looks like: "));
+  let src="";try{const s=JSON.parse(m.sources||"[]");const items=[...extra.map(n=>`<li>${esc(n)}</li>`),...s.map(x=>x.type==="past_answer"?`<li>Earlier reply #${x.pair_id} (similarity ${x.sim})</li>`:`<li>${esc(x.title)}, ${x.type==="note"?"dated note":"policy page"} (similarity ${x.sim})</li>`)];if(items.length)src=`<details class="details"><summary>Details</summary><ul>${items.join("")}</ul></details>`}catch(e){}
   $("#main").innerHTML=top+`<div class="scroll"><div class="thread">${head}${assist}${draft}${src}</div></div>`;
   $("#back").onclick=()=>{openId=null;editing=false;render()};
   const r=$("#rendered");if(r)r.onclick=()=>{editing=true;renderThread();const t=$("#edit");t.focus();t.setSelectionRange(0,0)};
@@ -423,7 +449,9 @@ function renderActions(){
   const open=ACTIONS.filter(a=>a.status==="open"),done=ACTIONS.filter(a=>a.status==="done");
   const row=a=>{const late=a.due_at&&a.due_at<new Date().toISOString();
     const due=a.due_at?`<span class="${late?"late":""}">Due ${new Date(a.due_at).toLocaleString([],{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</span>`:esc(a.due_text||"");
-    return `<div class="act ${a.status==="done"?"closed":""}"><div class="w">${esc(a.what)}<small>${due}</small></div>${a.status==="open"?`<button class="ghost" data-done="${a.id}">Done</button>`:""}</div>`};
+    const mail=MAILS.find(x=>x.thread_id===a.thread_id);
+    const ctx=mail?`<a href="#" data-open="${mail.id}">${esc(studentName())} · ${esc(mail.subject||"(no subject)")}</a> · `:"";
+    return `<div class="act ${a.status==="done"?"closed":""}"><div class="w">${esc(a.what)}<small>${ctx}${due}</small></div>${a.status==="open"?`<button class="ghost" data-done="${a.id}">Done</button>`:""}</div>`};
   const sec=(t,k,h)=>{const r=open.filter(a=>a.kind===k);return `<div class="sec"><h3>${t}${r.length?` (${r.length})`:""}</h3>${r.length?r.map(row).join(""):`<div class="hint">${h}</div>`}</div>`};
   $("#main").innerHTML=`<div class="toolbar"></div><div class="scroll"><div class="pagepad">
     <h2>Action list</h2><p class="lead">What the inbox is asking the team to do. Nothing here needs a separate tool: it fills itself from the emails.</p>
@@ -432,6 +460,7 @@ function renderActions(){
     ${sec("Spikes","spike","Many students writing about the same problem at once. Try “Simulate an incident” on the Context page.")}
     ${done.length?`<div class="sec"><h3>Done</h3>${done.map(row).join("")}</div>`:""}</div></div>`;
   document.querySelectorAll("[data-done]").forEach(b=>b.onclick=async()=>{await api(`/demo/api/actions/${b.dataset.done}/done`,{method:"POST",body:JSON.stringify({sid:SID})});await refreshActions();renderActions()});
+  document.querySelectorAll("[data-open]").forEach(l=>l.onclick=ev=>{ev.preventDefault();folder="inbox";openId=Number(l.dataset.open);render()});
 }
 async function renderContext(){
   let docs=[];try{docs=await api(`/demo/api/context?sid=${SID}`)}catch(e){snack(e.message)}

@@ -15,6 +15,28 @@ public_numbers:
 
 docs_dir: demo/corpus/docs
 
+# How replies are framed. The drafter writes only the body; greeting and sign-off come
+# from here, in the customer's language, with the name from how they signed off.
+email_style:
+  en:
+    greeting_named: "Hi {name},"
+    greeting: "Hi,"
+    signoff: |-
+      Kind regards,
+      The Harbourbrook team
+  nl:
+    greeting_named: "Hoi {name},"
+    greeting: "Hoi,"
+    signoff: |-
+      Groet,
+      Het Harbourbrook-team
+  de:
+    greeting_named: "Hallo {name},"
+    greeting: "Hallo,"
+    signoff: |-
+      Viele Grüße,
+      Das Harbourbrook-Team
+
 data_dir: data/demo
 
 # Provisional until labelled, like every firm starts. The demo corpus is small and

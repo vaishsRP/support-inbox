@@ -24,6 +24,7 @@ from .config import Firm
 from .docs import DocHit, DocIndex
 from .embed import encode
 from .llm import BadOutput, ChatModel, ModelUnavailable, chat_json
+from .mailtext import customer_name, format_reply, language
 from .retrieve import AnswerIndex, Hit
 from .rules import Match, Rule, apply_placeholders, check_incoming, sentences
 from .textclean import clean, redact
@@ -79,6 +80,10 @@ class Incoming:
     thread: list[tuple[str, str]] = field(default_factory=list)
     # Public demo only: whose private notes may be used. None = team-wide notes only.
     owner: str | None = None
+    # Real email: who wrote it and what they attached (attachments are not read).
+    sender_name: str = ""
+    sender_addr: str = ""
+    attachments: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -87,7 +92,8 @@ class Result:
     confidence: str | None
     draft: str | None
     reason: str
-    notes: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)      # for the dashboard, never in the draft
+    inline: list[str] = field(default_factory=list)     # things the agent must act on: go in the draft
     sources: list[dict] = field(default_factory=list)
     matches: list[Match] = field(default_factory=list)
     labels: list[str] = field(default_factory=list)
@@ -115,11 +121,13 @@ REUSE_SYSTEM = """You adapt an approved customer-support reply so it answers a n
 Rules:
 - Use only facts found in the APPROVED REPLY, the NEW MESSAGE or the THREAD. Never invent policies, amounts, dates, names, phone numbers or links.
 - Keep the approved reply's wording and tone. Change only what the new message requires.
+- Remove details that belonged to the earlier customer or moment and are not true for this one: a month or season ("in February"), "this morning", their room number, their dates.
 - Double-bracket placeholders like [[name]] stand for another customer's details that were removed. Fill one only if the new message gives that detail; otherwise leave the placeholder exactly as it is.
 - If the answer depends on something only the company's own systems know (payment, order, booking, account or delivery status), put [[CHECK: what the agent should look up]] where that fact would go.
 - If the new message asks something the approved reply does not answer, do not answer it. List it under "uncovered".
 - Do not promise refunds, money, compensation, exceptions, escalations or deadlines beyond what the approved reply already says.
-- Write in the language of the new message. Keep it about as short as the approved reply. No signature.
+- Write in the language of the new message. Keep it about as short as the approved reply.
+- {framing}
 - Decide "fits" first, strictly. It is true only if the approved reply deals with the same specific problem as the new message (same product or service, same kind of fault or request), so that a support agent would send it with small edits. Sharing a topic is not enough: a check-in app error and a passport kiosk are both "check-in" but not the same problem. If in doubt, false. When "fits" is false, leave "reply" empty.
 
 Return JSON only: {"fits": true|false, "reply": "...", "uncovered": ["..."]}"""
@@ -127,14 +135,16 @@ Return JSON only: {"fits": true|false, "reply": "...", "uncovered": ["..."]}"""
 DOCS_SYSTEM = """You write a short customer-support reply using only the SOURCES given.
 
 Rules:
-- Every fact must come from the SOURCES. After each sentence that uses a source, add [source: <title>].
+- Every fact must come from the SOURCES. List the titles of the sources you used under "used"; do not put source names or citations in the reply itself.
 - If the SOURCES do not answer the message, set "fits" to false and leave "reply" empty.
 - If the answer depends on something only the company's systems know, write [[CHECK: what to look up]] instead of guessing.
 - Parts of the message the sources do not answer go under "uncovered", not in the reply.
 - Do not promise refunds, money, compensation, exceptions, escalations or deadlines.
-- Write in the language of the message. Two to four sentences. No signature.
+- Write like the TEAM'S RECENT REPLIES: same tone, same length, same way of addressing people. Do not copy their facts.
+- Write in the language of the message. Two to four sentences.
+- {framing}
 
-Return JSON only: {"fits": true|false, "reply": "...", "uncovered": ["..."]}"""
+Return JSON only: {"fits": true|false, "reply": "...", "uncovered": ["..."], "used": ["..."]}"""
 
 REFUSE_SYSTEM = """A customer-support message has no approved answer and no document that covers it. Do NOT write a reply to the customer.
 
@@ -153,6 +163,10 @@ def _thread_block(thread: list[tuple[str, str]]) -> str:
 
 
 # ---- The drafter -----------------------------------------------------------------
+
+
+BODY_ONLY = "Write only the body: no greeting line and no sign-off, they are added separately."
+WITH_FRAME = "No signature."
 
 
 class Drafter:
@@ -174,6 +188,10 @@ class Drafter:
         self._doc_index: DocIndex | None = None
         self._doc_index_day: str | None = None
         self.run: str | None = None   # set by a replay so its drafts stay apart from live ones
+        self.style = firm.raw.get("email_style")   # None for tweet corpora: no greeting or sign-off
+        framing = BODY_ONLY if self.style else WITH_FRAME
+        self.reuse_system = REUSE_SYSTEM.replace("{framing}", framing)
+        self.docs_system = DOCS_SYSTEM.replace("{framing}", framing)
 
     def _docs(self, at: datetime) -> DocIndex:
         day = at.date().isoformat()
@@ -203,7 +221,7 @@ class Drafter:
 
         vec = encode([question])[0]
         sent_here = [redact(clean(t), self.firm.public_numbers) for who, t in mail.thread if who == "firm"]
-        hits = self.answers.search(vec=vec, k=3, before=mail.received_at, exclude_answers=sent_here)
+        hits = self.answers.search(vec=vec, k=3, before=mail.received_at, exclude_answers=sent_here, owner=mail.owner)
         doc_hits = self._docs(mail.received_at).search(vec=vec, k=3, owner=mail.owner)
         best = hits[0].sim if hits else 0.0
         best_doc = doc_hits[0].sim if doc_hits else 0.0
@@ -240,29 +258,31 @@ class Drafter:
             f"NEW MESSAGE:\n{question}\n\nTHREAD SO FAR:\n{_thread_block(mail.thread)}\n\n"
             f"APPROVED REPLY (to a similar earlier message: \"{top.question}\"):\n{top.answer}"
         )
-        out = chat_json(self.model, REUSE_SYSTEM, user)
+        out = chat_json(self.model, self.reuse_system, user)
         if not out.get("fits", True) or not str(out.get("reply", "")).strip():
             return None
         uncovered = [u for u in out.get("uncovered", []) if str(u).strip()]
         confidence = self.t.band(top.sim)
         notes = [f"closest past answer is from {top.asked_at[:10]} (similarity {top.sim:.2f})"]
+        inline = []
         age_days = (mail.received_at - datetime.fromisoformat(top.asked_at)).days
         if age_days >= STATUS_CLAIM_DAYS and _STATUS_CLAIM.search(top.answer):
             # "We fully expect to avoid cancellations" was true on the day it was written.
-            notes.append(
+            inline.append(
                 f"the past answer describes the situation on {top.asked_at[:10]} ({age_days} days ago); "
                 "check it is still true before sending"
             )
             confidence = "medium" if confidence == "high" else confidence
         if uncovered:
             confidence = "medium" if confidence == "high" else confidence
-            notes += [f"not covered by the past answer: {u}" for u in uncovered]
+            inline += [f"not answered yet: {u}" for u in uncovered]
         return Result(
             route="reuse",
             confidence=confidence,
             draft=str(out["reply"]).strip(),
             reason="adapted a past approved answer",
             notes=notes,
+            inline=inline,
             sources=[{"type": "past_answer", "pair_id": h.pair_id, "sim": round(h.sim, 4)} for h in hits],
             labels=["AI/draft-ready"],
         )
@@ -272,13 +292,18 @@ class Drafter:
             f"[{h.title}] ({'dated note, ' + h.created_at[:10] if h.kind == 'note' else 'standing document'})\n{h.text}"
             for h in doc_hits
         )
-        user = f"MESSAGE:\n{question}\n\nTHREAD SO FAR:\n{_thread_block(mail.thread)}\n\nSOURCES:\n{src}"
-        out = chat_json(self.model, DOCS_SYSTEM, user)
+        tone = self._tone_examples()
+        user = (
+            f"MESSAGE:\n{question}\n\nTHREAD SO FAR:\n{_thread_block(mail.thread)}\n\nSOURCES:\n{src}"
+            + (f"\n\nTEAM'S RECENT REPLIES (for tone only):\n{tone}" if tone else "")
+        )
+        out = chat_json(self.model, self.docs_system, user)
         if not out.get("fits", True) or not str(out.get("reply", "")).strip():
             return None
         uncovered = [u for u in out.get("uncovered", []) if str(u).strip()]
-        notes = [f"drafted from documents, not a past answer; check the cited sources"]
-        notes += [f"not covered by the documents: {u}" for u in uncovered]
+        used = [str(u) for u in out.get("used", []) if str(u).strip()]
+        notes = ["drafted from documents, not a past answer" + (f": {', '.join(used)}" if used else "")]
+        inline = [f"not answered yet: {u}" for u in uncovered]
         conf = "medium" if doc_hits[0].sim >= self.t.high and not uncovered else "low"
         return Result(
             route="docs",
@@ -286,6 +311,7 @@ class Drafter:
             draft=str(out["reply"]).strip(),
             reason="drafted from documents and notes",
             notes=notes,
+            inline=inline,
             sources=[{"type": h.kind, "doc_id": h.doc_id, "title": h.title, "sim": round(h.sim, 4)} for h in doc_hits],
             labels=["AI/draft-ready"],
         )
@@ -342,6 +368,16 @@ class Drafter:
         table = dict(zip(sents, english))
         return lambda s: table.get(s, s)
 
+    def _tone_examples(self, n: int = 2) -> str:
+        """The team's most recent real replies, so a draft written from documents still
+        sounds like them. Replies the team actually sent come first."""
+        rows = self.conn.execute(
+            "SELECT answer FROM pairs WHERE is_deflection = 0 AND retired = 0 "
+            "ORDER BY source = 'sent' DESC, answered_at DESC LIMIT ?",
+            (n,),
+        ).fetchall()
+        return "\n---\n".join(r[0] for r in rows)
+
     def _add_history_note(self, mail: Incoming, res: Result) -> None:
         past = actions.customer_history(self.conn, mail.customer_id, before=mail.received_at.isoformat(), limit=3)
         past = [p for p in past if p["thread_id"] != mail.thread_id]
@@ -372,8 +408,13 @@ class Drafter:
                 for m in matches:
                     if m.action == "track":
                         res.notes.append(f"this draft promises something that will be tracked once sent: \"{m.sentence}\"")
-                notes = "".join(f"\n[[AGENT NOTE: {n}]]" for n in res.notes)
-                res.draft = f"{REVIEW_LINE}\n{body}\n{notes}".rstrip()
+                if mail.attachments:
+                    res.inline.append(f"the customer attached {', '.join(mail.attachments)}; it was not read")
+                name = customer_name(mail.text, mail.sender_name, mail.sender_addr)
+                body = format_reply(body, self.style, name, language(mail.text))
+                # Only what the agent must act on goes in the draft; the rest is on the dashboard.
+                inline = "".join(f"\n\n[[AGENT NOTE: {n}]]" for n in res.inline)
+                res.draft = f"{REVIEW_LINE}\n\n{body}{inline}".rstrip()
         if res.confidence:
             res.labels.append(f"AI/confidence-{res.confidence}")
         if persist:
@@ -384,8 +425,8 @@ class Drafter:
         with self.conn:
             self.conn.execute(
                 """INSERT INTO drafts (thread_id, customer_msg_id, customer_id, created_at, route, confidence,
-                   reason, draft_text, source_pair_id, sources, run)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                   reason, draft_text, source_pair_id, sources, run, notes)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     mail.thread_id,
                     mail.msg_id,
@@ -398,6 +439,7 @@ class Drafter:
                     next((s["pair_id"] for s in res.sources if s.get("type") == "past_answer"), None),
                     json.dumps(res.sources),
                     self.run,
+                    json.dumps(res.notes),
                 ),
             )
             if res.draft and self.run is None:

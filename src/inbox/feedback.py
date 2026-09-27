@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 import sqlite3
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from rapidfuzz.distance import Indel
 
@@ -58,13 +59,18 @@ def record_sent(
     rules: list[Rule],
     public_numbers: list[str] = (),
     add_to_pool: bool = True,
+    owner: str | None = None,
+    tz: str | None = None,
 ) -> dict:
+    """`tz` is the firm's time zone: "someone will call you today" means today where
+    the firm is, not in UTC."""
     row = conn.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,)).fetchone()
     if row is None:
         raise KeyError(f"no draft {draft_id}")
     sim = edit_similarity(row["draft_text"], sent_text) if row["draft_text"] else None
     outcome = outcome_for(row["draft_text"], sim)
-    hits = check_outgoing(sent_text, rules, sent_at=sent_at)
+    local = sent_at.astimezone(ZoneInfo(tz)) if tz else sent_at
+    hits = check_outgoing(sent_text, rules, sent_at=local)
     with conn:
         conn.execute(
             "UPDATE drafts SET sent_text=?, sent_at=?, edit_similarity=?, outcome=? WHERE id=?",
@@ -75,26 +81,30 @@ def record_sent(
         )
         pair_id = None
         if add_to_pool:
-            pair_id = _add_pair(conn, row, sent_text, sent_at, public_numbers)
+            pair_id = _add_pair(conn, row, sent_text, sent_at, public_numbers, owner)
     return {"outcome": outcome, "edit_similarity": sim, "actions": new_actions, "pair_id": pair_id}
 
 
-def _add_pair(conn, draft_row, sent_text: str, sent_at: datetime, public_numbers) -> int | None:
+def _add_pair(conn, draft_row, sent_text: str, sent_at: datetime, public_numbers, owner=None) -> int | None:
     q = conn.execute(
         "SELECT text, created_at, parent_id FROM messages WHERE id = ?", (draft_row["customer_msg_id"],)
     ).fetchone()
     question = clean(q["text"]) if q else None
     if not question:
         return None
-    answer = redact(clean(sent_text, keep_urls=True), list(public_numbers))
+    # The greeting and sign-off are the customer's name and the firm's frame: stored
+    # answers keep the body, so the next draft gets its own greeting and name.
+    from .mailtext import strip_frame
+
+    answer = redact(strip_frame(clean(sent_text, keep_urls=True)), list(public_numbers))
     if not answer:
         return None
     cur = conn.execute(
         """INSERT INTO pairs (thread_id, customer_msg_id, customer_id, asked_at, answered_at, question, answer,
-           answer_raw, is_followup, is_deflection, source)
-           VALUES (?,?,?,?,?,?,?,?,?,0,'sent')
+           answer_raw, is_followup, is_deflection, source, owner)
+           VALUES (?,?,?,?,?,?,?,?,?,0,'sent',?)
            ON CONFLICT(customer_msg_id) DO UPDATE SET answer=excluded.answer, answer_raw=excluded.answer_raw,
-           answered_at=excluded.answered_at, source='sent'""",
+           answered_at=excluded.answered_at, source='sent', owner=excluded.owner""",
         (
             draft_row["thread_id"],
             draft_row["customer_msg_id"],
@@ -105,9 +115,10 @@ def _add_pair(conn, draft_row, sent_text: str, sent_at: datetime, public_numbers
             answer,
             sent_text,
             int(q["parent_id"] is not None),
+            owner,
         ),
     )
-    return cur.lastrowid
+    return conn.execute("SELECT id FROM pairs WHERE customer_msg_id = ?", (draft_row["customer_msg_id"],)).fetchone()[0]
 
 
 def measures(conn: sqlite3.Connection, run: str | None = None) -> dict:

@@ -111,6 +111,14 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "run" not in cols:
         conn.execute("ALTER TABLE drafts ADD COLUMN run TEXT")
         conn.commit()
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(drafts)")}
+    if "notes" not in cols:
+        conn.execute("ALTER TABLE drafts ADD COLUMN notes TEXT")  # JSON list of dashboard notes
+        conn.commit()
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(pairs)")}
+    if "owner" not in cols:
+        conn.execute("ALTER TABLE pairs ADD COLUMN owner TEXT")  # public demo: a visitor's own sent replies
+        conn.commit()
     cols = {r[1] for r in conn.execute("PRAGMA table_info(docs)")}
     if "owner" not in cols:
         conn.execute("ALTER TABLE docs ADD COLUMN owner TEXT")

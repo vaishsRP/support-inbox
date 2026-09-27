@@ -292,11 +292,15 @@ def create_app(firm_key: str | None = None, firm: Firm | None = None, model=None
     def sent(s: SentIn):
         c = db()
         try:
-            return feedback.record_sent(c, s.draft_id, s.text, s.sent_at or _now(), rules, firm.public_numbers)
+            out = feedback.record_sent(c, s.draft_id, s.text, s.sent_at or _now(), rules, firm.public_numbers,
+                                       tz=firm.timezone)
         except KeyError as e:
             raise HTTPException(404, str(e))
         finally:
             c.close()
+        if out.get("pair_id") and state["drafter"] is not None:
+            state["drafter"].answers.add(out["pair_id"])
+        return out
 
     @app.get("/api/digest", response_class=PlainTextResponse)
     def digest(at: datetime | None = None):

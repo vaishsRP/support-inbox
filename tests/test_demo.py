@@ -36,7 +36,7 @@ def test_visitor_flow_send_draft_reply_track(firm):
     [mail] = c.get(f"/demo/api/inbox?sid={s}").json()
     out = c.post("/demo/api/sent", json={"sid": s, "draft_id": mail["id"],
                                          "text": "Please ask a flight attendant to reset it. Someone will call you Friday."}).json()
-    assert out["outcome"] == "edited" and out["pair_id"] is None   # demo replies never join the shared pool
+    assert out["outcome"] == "edited" and out["pair_id"] is not None   # joins this visitor's own pool
     acts = c.get(f"/demo/api/actions?sid={s}").json()
     assert [a["kind"] for a in acts] == ["commitment"]
 
@@ -65,3 +65,26 @@ def test_notes_are_private_to_the_visitor(firm):
 def test_bad_session_rejected(firm):
     c = client(firm)
     assert c.get("/demo/api/inbox?sid=x").status_code == 400
+
+
+
+
+def test_sent_reply_teaches_the_next_draft_for_that_visitor_only(firm):
+    seen = []
+
+    def spy(system, user):
+        seen.append(user)
+        return reply(system, user)
+
+    c = TestClient(create_app(firm=firm, model=StubModel(spy), demo=True))
+    a, b = sid(c), sid(c)
+    c.post("/demo/api/send", json={"sid": a, "body": "wifi not working on my flight"})
+    [mail] = c.get(f"/demo/api/inbox?sid={a}").json()
+    c.post("/demo/api/sent", json={"sid": a, "draft_id": mail["id"],
+                                   "text": "So sorry! Wifi is back after a restart of the seat screen. Unique-phrase-xyz."})
+    seen.clear()
+    c.post("/demo/api/send", json={"sid": a, "body": "wifi not working on my flight"})
+    assert any("Unique-phrase-xyz" in u for u in seen)      # A's own reply is now the approved answer
+    seen.clear()
+    c.post("/demo/api/send", json={"sid": b, "body": "wifi not working on my flight"})
+    assert not any("Unique-phrase-xyz" in u for u in seen)  # B never sees it

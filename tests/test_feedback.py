@@ -63,3 +63,11 @@ def test_measures_report_the_three_numbers(conn):
     assert m["mails"] == 1 and m["drafted"] == 1 and m["draft_rate"] == 1.0
     assert m["edit_similarity_median"] == 1.0
     assert m["outcomes"] == {"sent_as_is": 1}
+
+
+def test_today_means_today_where_the_firm_is(conn):
+    # 22:30 UTC is 23:30 in Amsterdam (CET, UTC+1); "today" ends at 23:59 there, not in UTC.
+    late = datetime(2026, 11, 6, 22, 30, tzinfo=timezone.utc)
+    record_sent(conn, 1, "Someone will call you today.", late, RULES, tz="Europe/Amsterdam")
+    due = conn.execute("SELECT due_at FROM actions").fetchone()[0]
+    assert due.startswith("2026-11-06T22:59")   # 23:59 CET, stored in UTC

@@ -13,6 +13,7 @@ poll would in a real deployment.
 
 from __future__ import annotations
 
+import json
 import re
 import secrets
 import sqlite3
@@ -102,6 +103,7 @@ def mount(app: FastAPI, firm, db, drafter, rules) -> None:
             "confidence": r["confidence"], "reason": r["reason"], "draft": r["draft_text"],
             "subject": subject, "body": body, "sent": r["sent_text"], "outcome": r["outcome"],
             "edit_similarity": r["edit_similarity"], "sources": r["sources"],
+            "notes": json.loads(r["notes"]) if r["notes"] else [],
         }
 
     @app.get("/demo/api/inbox")
@@ -144,7 +146,8 @@ def mount(app: FastAPI, firm, db, drafter, rules) -> None:
         c.close()
         d = drafter()
         with lock:
-            res = d.handle(Incoming(msg_id, thread_id, _customer(sid), m.body, now, thread, owner=sid))
+            res = d.handle(Incoming(msg_id, thread_id, _customer(sid), m.body, now, thread, owner=sid,
+                                    sender_name=m.name))
         out = result_json(res)
         c = db()
         row = c.execute("SELECT * FROM drafts WHERE customer_msg_id = ?", (msg_id,)).fetchone()
@@ -160,8 +163,14 @@ def mount(app: FastAPI, firm, db, drafter, rules) -> None:
         if not row or row["customer_id"] != _customer(sid):
             c.close()
             raise HTTPException(404, "no such mail in this session")
-        out = feedback.record_sent(c, s.draft_id, s.text, datetime.now(timezone.utc), rules, firm.public_numbers, add_to_pool=False)
+        # The visitor's reply joins the pool for this visitor only: their next similar
+        # email is drafted from what they sent, wording and tone included.
+        out = feedback.record_sent(
+            c, s.draft_id, s.text, datetime.now(timezone.utc), rules, firm.public_numbers, owner=sid, tz=firm.timezone
+        )
         c.close()
+        if out.get("pair_id"):
+            drafter().answers.add(out["pair_id"])
         return out
 
     @app.get("/demo/api/actions")

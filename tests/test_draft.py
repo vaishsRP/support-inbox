@@ -81,7 +81,7 @@ def test_uncovered_part_caps_confidence(firm):
     d, _ = drafter(firm, reply)
     res = d.handle(mail("My bag did not arrive in Chicago, where is my bag? Also can I upgrade?"))
     assert res.confidence in ("medium", "low")
-    assert "not covered by the past answer: seat upgrade question" in res.draft
+    assert "not answered yet: seat upgrade question" in res.draft
 
 
 def test_check_placeholder_goes_on_the_action_list(firm):
@@ -180,3 +180,44 @@ def test_non_english_draft_is_checked_through_translation(firm):
     res = d.handle(mail("My bag did not arrive in Chicago, where is my bag?"))
     assert "reembolsaremos" not in res.draft
     assert "[[NEEDS AUTHORITY: refund" in res.draft
+
+
+def test_draft_has_no_reference_lines_only_the_review_line(firm):
+    d, _ = drafter(firm, js(fits=True, reply="Please file a report with our Baggage team.", uncovered=[]))
+    res = d.handle(mail("My bag did not arrive in Chicago, where is my bag?"))
+    assert "closest past answer" not in res.draft
+    assert res.draft.count("[[") == 1          # just the review line
+    assert any("closest past answer" in n for n in res.notes)   # still on the dashboard
+
+
+STYLE = {"en": {"greeting_named": "Hi {name},", "greeting": "Hi,", "signoff": "Kind regards,\nThe Test Air team"}}
+
+
+def test_email_style_firm_gets_greeting_name_and_signoff(firm):
+    firm.raw["email_style"] = STYLE
+    d, _ = drafter(firm, js(fits=True, reply="Hi [[name]], please file a report with our Baggage team. Kind regards, the team", uncovered=[]))
+    m = mail("My bag did not arrive in Chicago, where is my bag?\n\nThanks,\nPriya")
+    res = d.handle(m)
+    body = res.draft.split("\n\n", 1)[1]
+    assert body == "Hi Priya,\n\nPlease file a report with our Baggage team.\n\nKind regards,\nThe Test Air team"
+
+
+def test_docs_drafts_get_the_teams_tone_and_no_citations(firm):
+    conn = connect(firm.db_path)
+    with conn:
+        add_doc(conn, "standing", "Baggage policy", "Lost bags: file a report at the baggage desk within 24 hours.")
+    conn.close()
+    reply = js(fits=True, reply="Please file a report at the baggage desk within 24 hours.", uncovered=[], used=["Baggage policy"])
+    d, _ = drafter(firm, reply)
+    res = d.handle(mail("lost bags report baggage desk 24 hours"))
+    if res.route == "docs":
+        system, user = d.model.calls[-1] if "SOURCES" in d.model.calls[-1][1] else d.model.calls[0]
+        assert "TEAM'S RECENT REPLIES" in user
+        assert "[source:" not in res.draft
+
+
+def test_attachment_is_flagged_in_the_draft(firm):
+    d, _ = drafter(firm, js(fits=True, reply="Please file a report with our Baggage team.", uncovered=[]))
+    m = mail("My bag did not arrive in Chicago, where is my bag?")
+    m.attachments = ["tag.jpg"]
+    assert "the customer attached tag.jpg; it was not read" in d.handle(m).draft

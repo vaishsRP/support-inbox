@@ -35,12 +35,26 @@ class AnswerIndex:
         self.firm = firm
         conn = connect(firm.db_path)
         self.df = pd.read_sql_query(
-            "SELECT id, thread_id, question, answer, asked_at FROM pairs "
+            "SELECT id, thread_id, question, answer, asked_at, owner FROM pairs "
             "WHERE is_deflection = 0 AND retired = 0 ORDER BY asked_at, id",
             conn,
         )
         conn.close()
         self.vecs = cached(firm.data_dir / "vec_questions.npz", self.df.id.tolist(), self.df.question.tolist())
+        self.asked = self.df.asked_at.to_numpy()
+
+    def add(self, pair_id: int) -> None:
+        """A reply that was just sent joins the pool straight away: the answer-once loop."""
+        conn = connect(self.firm.db_path)
+        row = conn.execute(
+            "SELECT id, thread_id, question, answer, asked_at, owner FROM pairs WHERE id = ?", (pair_id,)
+        ).fetchone()
+        conn.close()
+        if row is None:
+            return
+        keep = self.df.id.to_numpy() != pair_id           # a re-sent reply replaces the old one
+        self.df = pd.concat([self.df[keep], pd.DataFrame([dict(row)])], ignore_index=True)
+        self.vecs = np.vstack([self.vecs[keep], encode([row["question"]])])
         self.asked = self.df.asked_at.to_numpy()
 
     def __len__(self) -> int:
@@ -54,6 +68,7 @@ class AnswerIndex:
         before: str | datetime | None = None,
         exclude_thread: str | None = None,
         exclude_answers: list[str] | None = None,
+        owner: str | None = None,
     ) -> list[Hit]:
         """Top-k closest past questions.
 
@@ -64,7 +79,9 @@ class AnswerIndex:
         if vec is None:
             vec = encode([text])[0]
         sims = self.vecs @ vec
-        mask = np.ones(len(sims), dtype=bool)
+        # Team-wide answers, plus (public demo only) this visitor's own sent replies.
+        owners = self.df.owner.to_numpy() if "owner" in self.df else np.full(len(sims), None)
+        mask = np.array([o is None or (isinstance(o, float) and np.isnan(o)) or o == owner for o in owners])
         if before is not None:
             cutoff = before.isoformat() if isinstance(before, datetime) else before
             mask &= self.asked < cutoff

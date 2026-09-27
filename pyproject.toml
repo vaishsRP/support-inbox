@@ -19,6 +19,7 @@ dependencies = [
     "openai>=1.30",
     "fastapi>=0.110",
     "uvicorn>=0.29",
+    "tzdata>=2024.1",   # time zones on Windows, which has no system database
 ]
 
 [project.optional-dependencies]
