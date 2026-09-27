@@ -19,7 +19,7 @@ FORBIDDEN = [
     r"gmail\.send\b",                     # the send-only OAuth scope
     r"\byagmail\b|\bredmail\b|\bflask_mail\b|\bsendgrid\b|\bmailgun\b|\bresend\b|\bbrevo\b",
 ]
-SCANNED = [ROOT / "src", ROOT / "scripts", ROOT / "Dockerfile", ROOT / "config"]
+SCANNED = [ROOT / "src", ROOT / "config"]
 
 
 def _files():

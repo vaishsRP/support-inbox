@@ -22,3 +22,6 @@ venv/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Working notes and self-hosting kit: kept locally, not published
+notes/

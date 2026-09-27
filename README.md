@@ -1,6 +1,8 @@
 # A support inbox assistant that won't promise what nobody authorised
 
-Demo video: coming soon. To try it yourself, see [Try it](#try-it).
+[![tests](https://github.com/vaishsRP/support-inbox/actions/workflows/ci.yml/badge.svg)](https://github.com/vaishsRP/support-inbox/actions/workflows/ci.yml)
+
+Demo video: coming soon.
 
 It works inside Gmail. Every customer email gets a draft reply in its thread and one
 label saying what to do with it. A person reads it and presses send; the tool has no
@@ -22,29 +24,27 @@ code that can send mail, and a test fails the build if any appears.
 
 ## In Gmail
 
-| Label | The draft | You |
+| Label | The draft | The agent |
 |---|---|---|
-| `AI/draft-ready/high`, `/medium`, `/low` | A reply from past replies or policies | check, send |
-| `AI/needs-approval` | A reply with a red placeholder, or an escalation note and holding reply | approve or escalate, send |
-| `AI/no-answer` | A frame to write in, with questions to ask | write it, send |
+| `AI/draft-ready/high`, `/medium`, `/low` | A reply from past replies or policies | checks, sends |
+| `AI/needs-approval` | A reply with a red placeholder, or an escalation note and holding reply | approves or escalates, sends |
+| `AI/no-answer` | A frame to write in, with questions to ask | writes it, sends |
 | `AI/skipped` | none: auto-replies, bounces, newsletters | nothing |
 
-Two drafts work as pages you edit and never send:
-
-- **To-do list**: delete a line when it's done, type a line at the bottom to add one.
-- **Context and policies**: delete a note to remove it (a false alarm), type a note at
-  the bottom for anything happening now ("Heating outage Block C for 3 days").
+Two drafts work as pages the team edits and never sends: a **To-do list** (delete a line
+when it's done, type one to add it) and **Context and policies** (notes about what is
+happening now, like an outage, plus the policy pages).
 
 Also handled: quoted history, signatures and footers are stripped; replies are in the
 customer's language (English, Dutch, German); the customer's name comes from how they
 sign off; bank and card numbers are hidden from the model; each customer's earlier
-conversations are given as dated context; the company's house rules ("use *je*, not
-*u*") apply to every draft.
+conversations are given as dated context; the team's house rules ("use *je*, not *u*")
+apply to every draft.
 
 ## What I found
 
-Built against public customer-support tweets to American Airlines and Apple Support
-(Kaggle, CC BY-NC-SA 4.0), then run on a live Gmail account.
+Built against public customer-support tweets to American Airlines and Apple Support,
+then run on a live Gmail account.
 
 | | American Airlines | Apple Support |
 |---|---:|---:|
@@ -59,35 +59,27 @@ Built against public customer-support tweets to American Airlines and Apple Supp
   claimed to be "authorised by management".
 - **Spike detection caught a real incident on the day**: the iOS 11.1 bug that turned
   "i" into "A [?]", 16 customers in six hours against a normal of one.
-- **Real email found real bugs** the tests had missed: a Gmail API quirk with sent
-  drafts, a deleted draft stalling the watcher, "u" (Dutch for "you") switching a reply
-  to Dutch. Each is fixed and now tested.
+- **Real email found bugs the tests had missed**: a Gmail API quirk with sent drafts, a
+  vanished draft stalling the watcher, "u" (Dutch for "you") switching a reply to Dutch.
+  Each is fixed and now tested.
 
-Details: [sanity check](reports/sanity_check.md), [decision log](DECISIONS.md),
-[reports](reports/).
+The reports behind these numbers are in [reports/](reports/).
 
-## Not done yet
+## How it's built
 
-- Hand-labelling ~150 pairs to set the similarity thresholds (they are estimates now).
-- A small study of whether people's edits make later drafts need less editing.
-- Outlook / Microsoft 365 (Gmail only).
+Python, SQLite, local sentence embeddings (`multilingual-e5-small`), and an open model on
+Groq's free tier; everything runs at zero cost. The Gmail integration reads, drafts and
+labels through the Gmail API. The rules for what must never be promised are a plain
+YAML file a support lead can read and edit ([config/rules/default.yaml](config/rules/default.yaml)).
+129 tests, including an in-memory fake of the Gmail API.
 
-## Try it
-
-Python 3.11+, all free: local embeddings, Groq's free tier or a local Ollama model, SQLite.
-
-```bash
-python -m venv .venv && .venv\Scripts\activate
-pip install torch --index-url https://download.pytorch.org/whl/cpu
-pip install -e ".[embed,gmail,dev]"
-copy .env.example .env                       # add a free Groq key
-python -m inbox --firm demo import           # a made-up student housing company
-python -m inbox.app --firm demo --demo       # web demo on http://127.0.0.1:8000/demo
-pytest -q                                    # 129 tests, no network needed
 ```
-
-With your own Gmail: [deploy/GMAIL_SETUP.md](deploy/GMAIL_SETUP.md) (about 20 minutes).
-For a company's support inbox: [deploy/AT_A_COMPANY.md](deploy/AT_A_COMPANY.md).
+src/inbox/     the assistant: drafting, rules, Gmail, to-do list, context
+tests/         129 tests, no network needed
+config/        company settings, commitment rules, categories
+demo/          a made-up student housing company used for the demo
+reports/       the findings above
+```
 
 ## Licence
 
