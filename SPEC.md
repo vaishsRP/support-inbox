@@ -280,6 +280,16 @@ in testing mode for a handful of accounts. Real deployment needs Google's
 restricted-scope verification, which is a real process. Worth knowing rather
 than discovering.
 
+## The public demo
+
+Added 2026-09-27 at the owner's request, so a visitor can try the tool without Gmail.
+One page with two sides: a student writes to a made-up company (Harbourbrook Student
+Homes, everything invented and labelled so), then switches to the support side, a
+Gmail-style inbox showing the draft, labels, refusals, blocks, the action list and the
+context page. It runs the real pipeline on a free Hugging Face Space. Each visitor's
+mails and notes are private to their session, and nothing a visitor sends joins the
+shared answer pool. It is a showcase, not the product's interface: Gmail still is.
+
 ## What gets measured
 
 Three numbers, all cheap.

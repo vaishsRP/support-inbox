@@ -51,7 +51,7 @@ def import_helpdesk(firm: Firm, log=print) -> dict:
                 "INSERT INTO messages VALUES (?,?,?,?,0,?,?)",
                 (f"a{i}", str(r["thread_id"]), msg_id, firm.brand_handle, answered, str(r["answer"])),
             )
-            answer = redact(clean(str(r["answer"])), firm.public_numbers)
+            answer = redact(clean(str(r["answer"]), keep_urls=True), firm.public_numbers)
             conn.execute(
                 """INSERT INTO pairs (thread_id, customer_msg_id, customer_id, asked_at, answered_at, question,
                    answer, answer_raw, is_followup, is_deflection, source) VALUES (?,?,?,?,?,?,?,?,?,?, 'corpus')""",

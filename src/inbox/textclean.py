@@ -53,10 +53,15 @@ _NOT_NAMES = {
 }
 
 
-def clean(text: str) -> str:
-    """Normalise a raw message: unescape HTML, drop handles, URLs and sign-offs."""
+def clean(text: str, keep_urls: bool = False) -> str:
+    """Normalise a raw message: unescape HTML, drop handles and sign-offs.
+
+    URLs become [link] in customer messages, but approved answers keep them
+    (keep_urls=True): there the link is often the answer, a help article.
+    """
     text = html.unescape(text or "")
-    text = _URL.sub("[link]", text)
+    if not keep_urls:
+        text = _URL.sub("[link]", text)
     text = _MENTION.sub(" ", text)
     text = _SIGNOFF.sub("", text)
     return _WS.sub(" ", text).strip()
@@ -69,7 +74,10 @@ def is_deflection(text: str) -> bool:
 
 def redact(text: str, public_numbers: list[str] | tuple[str, ...] = ()) -> str:
     """Replace one customer's personal details with placeholders."""
-    keep = {n: f"\x00{i}\x00" for i, n in enumerate(public_numbers)}
+    # The firm's own numbers and any links are shielded: a short-link code like
+    # t.co/XK4J2P would otherwise look like a booking reference.
+    shielded = list(public_numbers) + _URL.findall(text)
+    keep = {n: f"\x00{i}\x00" for i, n in enumerate(shielded)}
     for n, token in keep.items():
         text = text.replace(n, token)
 

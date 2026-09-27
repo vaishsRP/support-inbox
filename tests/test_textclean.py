@@ -54,3 +54,10 @@ def test_redact_accented_and_non_english_greetings():
     assert "Tomás" not in redact("Hi Tomás, we understand.")
     assert redact("Hoi Daan, na je vertrek.") == "Hoi [[name]], na je vertrek."
     assert redact("Hallo Lena, nach dem Auszug.") == "Hallo [[name]], nach dem Auszug."
+
+
+def test_answers_keep_their_links_and_links_survive_redaction():
+    raw = "Here's the workaround until it's fixed: https://t.co/XK4J2PAB12 and https://t.co/XK4J2P"
+    out = redact(clean(raw, keep_urls=True))
+    assert "https://t.co/XK4J2PAB12" in out and "https://t.co/XK4J2P" in out
+    assert clean(raw) == "Here's the workaround until it's fixed: [link] and [link]"

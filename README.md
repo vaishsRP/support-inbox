@@ -21,16 +21,19 @@ Short answer from building it:
   told the model it was "authorised by management", no promise got past the rules.
   Legal threats and data-deletion requests were never drafted. Refusals came with
   related past emails and questions to ask the customer.
-- **Reusing past answers is weaker than I expected on real data.** On American
-  Airlines' public Twitter support, customers ask the same things over and over, but
-  the airline writes every reply fresh: the answer to the closest earlier question is
-  barely closer to the real reply than a random one (0.41 against 0.39 character
-  similarity). Whether a person would still accept those answers is what the hand
-  labels are for, and they are not done yet.
-- **Spike detection is useful but noisy.** It found a plausible real surge (delays on
-  the Monday after Thanksgiving) and also flagged chatter.
-
-<!-- APPLE -->
+- **Reusing past answers works for a team that answers in templates, and barely for
+  one that doesn't.** Apple Support's replies repeat: replaying 45 real tweets, 40%
+  got a draft, several word for word what Apple sent, and the share rose from 13% to
+  67% as the pool of past answers grew. American Airlines writes every reply fresh:
+  7% got a draft, and the answer to the closest earlier question was barely closer to
+  the real reply than a random one (0.41 against 0.39).
+- **Spike detection caught a real incident on the day.** The iOS 11.1 bug that turned
+  "I" into "A [?]" showed up the evening it shipped: 16 customers in six hours against
+  a normal of one. The catch: people describe one problem in many ways, so it fired in
+  eight categories at once until spikes were grouped by time.
+- **Not known yet:** whether a person would accept these drafts (hand labels), and
+  whether their corrections make later drafts better (a small edit study). Both need a
+  person, and both are next.
 
 ## Try it
 
@@ -60,11 +63,28 @@ What is uncommon here:
 
 ## What I found
 
-**Customers repeat themselves; this airline's answers do not.** For each real
-question I looked only at earlier ones (no peeking at the future), took the closest,
-and compared its approved answer with the reply actually sent. Near copies came up in
-0 to 3% of cases even for near-identical questions. Full report:
-[reports/step1_americanair.md](reports/step1_americanair.md).
+**Customers repeat themselves; whether answers do depends on the team.** For each
+real question I looked only at earlier ones (no peeking at the future), took the
+closest, and compared its approved answer with the reply actually sent.
+
+| | American Airlines | Apple Support |
+|---|---:|---:|
+| First messages with a very close earlier question | 18% | 69% |
+| Reused answer vs real reply (random answer) | 0.41 (0.39) | 0.50 (0.42) |
+| Near copies at the highest question similarity | 3% | 17% |
+| Replay: messages that got a draft | 7% of 60 | 40% of 45 |
+
+Reports: [Apple](reports/step1_applesupport.md), [American Airlines](reports/step1_americanair.md),
+replays for [Apple](reports/replay_applesupport.md) and [American Airlines](reports/replay_americanair.md).
+
+**Old answers go stale.** The replay reused "we fully expect to avoid cancellations"
+and "the latest version of iOS 11.0.2" weeks after they were true. Reused answers that
+describe a situation rather than a policy now come with a note to check they still
+hold.
+
+**The link was the answer.** Apple's reply to the "I" bug was one sentence and a link
+to the workaround. My first version tidied every link into `[link]`, which made that
+draft useless. Answers keep their links now.
 
 **Sarcasm fools the search.** "Thanks for losing my bag!" sits right next to "Thanks
 for getting my luggage back to me!". The fit check (a second look by the model before
@@ -79,15 +99,20 @@ airline replies they flag under 1%. Every false alarm found ("they'll issue you 
 boarding pass" read as a refund) became a regression test. The softest miss in a
 sample was "we'll reunite you with your belongings as early as possible".
 
-Realistic scenarios: [reports/scenarios_americanair.md](reports/scenarios_americanair.md).
+**Spikes: [Apple](reports/step9_spikes_applesupport.md), [American Airlines](reports/step9_spikes_americanair.md).**
+Two windows spiked for both brands at the same time, which points at how the dataset
+was collected rather than at two incidents; they are treated as noise.
+
+Realistic scenarios: [Apple](reports/scenarios_applesupport.md), [American Airlines](reports/scenarios_americanair.md).
 Everything that changed and why: [DECISIONS.md](DECISIONS.md). The honest overall
 assessment: [reports/sanity_check.md](reports/sanity_check.md).
 
 ## What is missing
 
-- **Hand labels.** About 150 pairs judged by a person ("would this earlier answer
-  have done?") to set the reuse threshold and test it. The tool for it is built
-  (`python -m inbox label`); the labelling is not done.
+- **Hand labels.** About 150 Apple pairs judged by a person ("would this earlier
+  answer have done?") to set the reuse threshold and test it. The tool for it is built
+  (`python -m inbox --firm applesupport label`); the labelling is not done, so every
+  threshold today is a guess.
 - **Real edits.** Whether people's corrections make later drafts need less editing
   needs people editing drafts: a small hand-run study of 30 + 30 drafts.
 - **Gmail.** Drafts into threads and `AI/*` labels is the last build step and not

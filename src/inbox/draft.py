@@ -30,6 +30,17 @@ from .textclean import clean, redact
 
 REVIEW_LINE = "[[REVIEW: delete this line once you have read the draft]]"
 
+# Past answers that describe a situation rather than a policy go stale. Found in the
+# American Airlines replay: "we fully expect to avoid cancellations" reused weeks later.
+STATUS_CLAIM_DAYS = 3
+_STATUS_CLAIM = re.compile(
+    r"\b(we(?:'re| are) aware|known issue|currently|right now|at the moment|at this time|"
+    r"all should be (?:good|fine|back)|(?:we|we're|we are) (?:fully )?expect\w*|aren't expecting|"
+    r"is (?:down|back up|working again)|(?:outage|disruption)s?\b|until it's fixed|"
+    r"latest (?:version|update|software))",
+    re.I,
+)
+
 
 @dataclass
 class Thresholds:
@@ -235,6 +246,14 @@ class Drafter:
         uncovered = [u for u in out.get("uncovered", []) if str(u).strip()]
         confidence = self.t.band(top.sim)
         notes = [f"closest past answer is from {top.asked_at[:10]} (similarity {top.sim:.2f})"]
+        age_days = (mail.received_at - datetime.fromisoformat(top.asked_at)).days
+        if age_days >= STATUS_CLAIM_DAYS and _STATUS_CLAIM.search(top.answer):
+            # "We fully expect to avoid cancellations" was true on the day it was written.
+            notes.append(
+                f"the past answer describes the situation on {top.asked_at[:10]} ({age_days} days ago); "
+                "check it is still true before sending"
+            )
+            confidence = "medium" if confidence == "high" else confidence
         if uncovered:
             confidence = "medium" if confidence == "high" else confidence
             notes += [f"not covered by the past answer: {u}" for u in uncovered]

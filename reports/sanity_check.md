@@ -1,14 +1,40 @@
 # Sanity check: is this practical, feasible, and does it add anything?
 
-Written 2026-09-27 after steps 1, 2 and 4 to 11 were built and run against real data,
-before the hand labels (step 3) and Gmail (step 12). It is meant to be read by the
-owner before deciding what to finish, and by anyone judging the project.
+Written 2026-09-27 after steps 1, 2 and 4 to 11 were built and run against real data
+(American Airlines and Apple Support tweets), before the hand labels (step 3) and
+Gmail (step 12). For the owner, before deciding what to finish, and for anyone judging
+the project.
 
-Short version: **the safety half works and is the real contribution; the
-answer-reuse half is unproven on real data and weaker than the spec assumed; the
-action-list half is useful but noisy.** Details and evidence below.
+Short version: **the safety half works and is the real contribution. Reuse works
+for a team that answers in templates (Apple) and barely at all for a team that
+writes every reply fresh (American Airlines), so it is worth building on, but the
+pitch has to say which kind of team it is for. The action list works; spike
+detection caught a real incident on time but needs grouping to be usable.**
 
-<!-- RESULTS -->
+## The numbers
+
+| | American Airlines | Apple Support |
+|---|---:|---:|
+| Customer/reply pairs in the corpus | 36,420 | 106,400 |
+| Replies that only deflect ("DM us") | 21% | 56% |
+| First messages with a very close earlier question (>= 0.92) | 18% | 69% |
+| Reused answer vs real reply, character similarity (random answer) | 0.41 (0.39) | 0.50 (0.42) |
+| Near copies at the highest question similarity | 3% | 17% |
+| Replay: messages that got a draft (provisional threshold) | 7% of 60 | 40% of 45 |
+| Replay: draft rate as the pool grows, first to last slice | 5%, 0%, 15% | 13%, 40%, 67% |
+| Realistic scenarios passed | 16 of 17 checks (the miss: a lost-bag email just under the guessed threshold) | 12 of 12 checks |
+| Spike rows before / after grouping into incidents | 10 / 6 | 43 / 13 |
+
+What the replay can say: more past examples raise the share of mail that gets a
+draft (Apple, 13% to 67%). What it cannot say: whether human corrections teach the
+tool. Nobody edits anything in a replay.
+
+On commitments, be precise about the evidence. None of the 22 replay drafts tried
+to promise anything, so the replay does not test the rules. The evidence is the
+scenarios (a prompt injection claiming management authority, refund demands, a
+free-replacement demand: no promise reached a draft unflagged) and a run of the rules
+over all 28,735 real American Airlines replies (under 1% flagged, false alarms fixed
+and kept as tests).
 
 ## 1. Does it add anything?
 
@@ -22,9 +48,9 @@ verified tonight:
 
 | Claim | Status |
 |---|---|
-| Never promises what nobody authorised: money, refunds, exceptions, deadlines become `[[NEEDS AUTHORITY]]` placeholders | **Verified** on every scenario and replay draft, including a prompt injection that told the model it was "authorised by management". Rules fire on under 1% of real replies, so they do not bury agents. |
+| Never promises what nobody authorised: money, refunds, exceptions, deadlines become `[[NEEDS AUTHORITY]]` placeholders | **Verified in the scenarios**, including a prompt injection that told the model it was "authorised by management". Rules fire on under 1% of real replies, so they do not bury agents. The replay drafts never tried to promise anything, so they add no evidence either way. |
 | Refuses with a reason instead of guessing, and still helps the agent | **Verified**. Refusals came with related past threads and questions to ask the customer, in the customer's language. |
-| Turns the inbox into an action list: promises with deadlines, checks, spikes | **Partly**. Promises and checks work. Spike detection found a plausible real surge (post-Thanksgiving delays) but also noise, because clusters built from tweets group by mood as much as by problem. |
+| Turns the inbox into an action list: promises with deadlines, checks, spikes | **Mostly**. Promises and checks work. Spike detection caught the iOS 11.1 "I" bug on the evening it shipped (16 customers against a normal of 1) and a post-Thanksgiving delay surge. But one incident fired in eight categories at once, and two windows spiked for both brands at the same time, which looks like a dataset artefact. Grouping spikes that overlap in time cut 43 rows to 13; it is still several rows for one multi-day incident. |
 | Measures how much a human changed the draft, not "deflection rate" | **Built, not yet measured** on real human edits. Needs the 30 + 30 hand-run study in the spec. |
 
 ## 2. Is it practical for a real support team?
@@ -71,6 +97,35 @@ verified tonight:
 3. How many real commitments the rules miss (hand check on a sample, spec metric 3).
 4. Whether Gmail's restricted scope is workable beyond testing mode.
 
-## 6. Recommended changes (logged in DECISIONS.md)
+## 6. Changes this check prompted (all logged in DECISIONS.md)
 
-<!-- CHANGES -->
+Made tonight:
+
+1. **Build on Apple, keep American Airlines as the contrast.** Label Apple pairs
+   first. The pitch becomes "for teams that answer in templates", with American
+   Airlines as the honest counter-example.
+2. **Live dated notes beat old answers**, because a note is what is true now.
+3. **Stale situation answers are flagged** ("we expect", "known issue", "latest
+   version"), after the replay reused "we fully expect to avoid cancellations" and
+   "the latest version of iOS 11.0.2" out of date.
+4. **Answers keep their links.** Reused answers had lost the help-article link that
+   was the actual answer.
+5. **Spikes grouped into incidents** by time, after meaning-based grouping failed.
+6. **Redaction covers accented names and Dutch/German greetings.**
+7. **The demo became a two-sided, Gmail-style page** for a made-up company, hosted
+   free on Hugging Face.
+
+Recommended next, in order:
+
+1. **Label about 150 Apple pairs** (`python -m inbox --firm applesupport label`,
+   about an hour), then `calibrate`. Every threshold today is a guess on a squashed
+   similarity scale.
+2. **Run the 30 + 30 hand edit study** on Apple drafts. It is the only test of the
+   actual pitch ("corrections teach it").
+3. **Hand-check commitments** on a sample of 100 real Apple and American Airlines
+   replies: how many promises do the rules miss? (spec metric 3)
+4. **Deploy the demo** (deploy/DEPLOY.md) and put the link in the README.
+5. **Gmail** (step 12) last, on a separate demo account.
+
+Not recommended: more features. The later list is long enough, and every open question
+above is about evidence, not capability.

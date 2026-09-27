@@ -3,6 +3,83 @@
 What changed, when, and what prompted it. Newest first. Findings that could
 change the project's direction are marked **finding**.
 
+## 2026-09-27 (late)
+
+**finding: Apple Support is where reuse holds up; build on Apple.** Step 1 on Apple
+(`reports/step1_applesupport.md`): 69% of first messages have a very close earlier
+question, and unlike American Airlines the answer gets more reusable as the question
+gets closer: near copies rise from 3% to 17% at the top similarity band, and reused
+answers score 0.50 against 0.42 for a random one. Still, even at the top 83% are not
+near copies, so a person's judgement (step 3 labels) decides. Apple's scenarios passed
+12 of 12, and its drafts were the team's real templates (the iOS 11 "I" bug got
+Apple's actual workaround reply). American Airlines stays as the contrast case: a team
+that writes every reply fresh gets little from reuse.
+
+**finding: American Airlines replay drafted 7%.** 60 real messages: 56 refused, 4
+drafted, and the drafts were no closer to the real replies than reusing the old answer
+word for word (0.40 to 0.43). At the provisional threshold, on this brand, the tool is
+mostly a refusal machine with good notes.
+
+**Stale "situation" answers are flagged.** The replay reused "we fully expect to avoid
+cancellations" for a worried customer weeks later: not a commitment by the rules, but
+possibly false today. A reused answer that describes a situation ("we're aware",
+"known issue", "we expect", "right now", and after the Apple replay reused "the latest
+version of iOS 11.0.2" out of date, "latest version") and is more than 3 days old now
+gets an agent note to check it is still true, and loses high confidence. Unit test added.
+
+**finding: Apple replay drafted 40%, and the draft rate rose with the pool.** 45 real
+messages: 18 drafted, several word for word what Apple sent (workaround link included,
+after the link fix). Across three time slices the draft rate went 13%, 40%, 67% as the
+pool grew from about 4,500 to 39,000 answers. That is the honest version of the
+replay curve: more examples help. 9 of the 27 messages Apple itself only deflected
+("DM us") got a real draft. None of the 22 replay drafts across both brands tried to
+promise anything, so the replay is not evidence for the commitment rules; the
+scenarios and the full-corpus rule run are.
+
+**Bug fixed: reused answers lost their links.** Cleaning turned every URL into `[link]`,
+which is right for customer messages but wrong for answers, where the link is often the
+answer (Apple's workaround article). Answers now keep URLs, and URLs are shielded from
+redaction so a short-link code is never mistaken for a booking reference. Both brands
+re-imported; pair ids and questions were fingerprinted before and after and matched,
+so cached vectors stayed valid.
+
+**finding: spike detection caught a real incident on time.** On Apple, the first spike
+opened on Tuesday 31 October 2017 at 20:00 ("letter / type / weird", 16 customers
+against a normal of 1.0), the day iOS 11.1 shipped with the "I" autocorrect bug. It
+peaked at 121 customers in one window on 4 November. On American Airlines, a delay
+surge on Monday 27 November (after Thanksgiving) was caught.
+
+**Spikes are grouped into incidents by time.** The iOS bug fired in about eight
+categories at once (people describe it in different words and different tempers), 43
+rows in total. Grouping by meaning failed: every spike centroid sat between 0.94 and
+0.99, and unrelated spikes were closer than parts of the same incident. Spikes that
+overlap in time are now one incident row listing its topics: 43 rows became 13 on
+Apple, 10 became 6 on American Airlines. Coincident but unrelated problems will share a
+row; the row lists both.
+
+**Probable data artefacts, not incidents:** both brands "spike" on Monday 9 October and
+Monday 23 October around 20:00 to 22:00. Two unrelated companies spiking in the same
+windows points at how the dataset was collected. Treated as noise, not as evidence.
+
+**Demo decisions.**
+- Made-up company Harbourbrook Student Homes, student housing, written for the demo and
+  labelled as such. The owner works in student mobility, so nothing from that employer
+  is used; moving the tool there later is a config file, the employer's mailbox, and
+  about 150 labels, with the employer's permission and a local model.
+- Not built from the suggested generated datasets (Hugging Face tickets, Kaggle
+  Aetheros emails, Bitext): each is made up by someone else, and none is one coherent,
+  relatable company whose answers agree with its policies. RSiCS was also checked: real
+  customers, but talking to chatbots, with no human replies to reuse. MSDialog
+  (Microsoft Community forum threads answered by staff) is the one real alternative
+  worth keeping in reserve.
+- Hosted on a free Hugging Face Space: the real pipeline runs there (the model plus
+  PyTorch is far over Vercel's free function limit). Deploy files in `deploy/`.
+- Each visitor has a private session; notes are scoped to it; what a visitor "sends"
+  never joins the shared answer pool, so nobody can plant an answer for the next visitor.
+- The page imitates Gmail's layout and colours after the first two designs were judged
+  cluttered and unintuitive by the owner. It follows Gmail's rounded shapes, which
+  overrides an earlier "no rounded corners" request; flagged to the owner.
+
 ## 2026-09-27
 
 **Realistic scenarios added** (`python -m inbox --firm <firm> scenarios`, report in

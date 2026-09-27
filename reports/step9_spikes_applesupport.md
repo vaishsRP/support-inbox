@@ -2,7 +2,27 @@
 
 46,672 customer messages from 01 Oct to 03 Dec 2017, stepping through in 6-hour windows. A spike needs at least 8 distinct customers, 3x the category's normal rate for a window and 4 standard deviations above it, measured over the previous 7 days. Category names are the suggested ones until renamed by hand. Only messages the firm answered (not deflected) are counted, to save embedding time; spikes are therefore undercounted.
 
-**43 spikes raised.**
+**43 category spikes, grouped into 13 incidents** (spikes overlapping in time are one incident, and one action-list row).
+
+## Incidents
+
+| opened | closed | topics | peak customers in one topic |
+|---|---|---|---:|
+| Mon 09 Oct 20:00 | Tue 10 Oct 02:00 | link / wtf / real | 15 |
+| Mon 23 Oct 20:00 | Tue 24 Oct 02:00 | apple / email / store | 18 |
+| Thu 26 Oct 20:00 | Fri 27 Oct 20:00 | music / apple / songs, apple / email / store | 42 |
+| Tue 31 Oct 20:00 | Wed 01 Nov 08:00 | letter / type / weird | 16 |
+| Wed 01 Nov 20:00 | Thu 02 Nov 08:00 | fix / shit / glitch, question / mark / box | 11 |
+| Fri 03 Nov 20:00 | Sun 05 Nov 02:00 | iphone / ios / working, wtf / shit / annoying, question / mark / box, fix / shit / problem, letter / type / weird, link / wtf / real, link / fix / shit, fix / shit / glitch, fix / glitch / problem, way / off / turn, gonna / fix / fixed, update / updates / phone | 121 |
+| Sun 05 Nov 20:00 | Mon 06 Nov 08:00 | gonna / fix / fixed, wtf / shit / annoying, question / mark / box, fix / shit / problem, link / wtf / real, link / fix / shit, fix / shit / glitch, fix / glitch / problem | 105 |
+| Mon 06 Nov 20:00 | Tue 07 Nov 08:00 | gonna / fix / fixed, phone / update / since | 44 |
+| Wed 08 Nov 02:00 | Wed 08 Nov 08:00 | link / phone / keep | 37 |
+| Mon 13 Nov 20:00 | Tue 14 Nov 08:00 | iphone / ios / working, que / con / meu | 36 |
+| Wed 29 Nov 02:00 | Wed 29 Nov 08:00 | way / off / turn | 25 |
+| Wed 29 Nov 20:00 | Thu 30 Nov 02:00 | letter / type / weird | 10 |
+| Sat 02 Dec 02:00 | Sat 02 Dec 20:00 | iphone / ios / working, ios / iphone / wifi | 51 |
+
+## Every category spike
 
 | opened | closed | category | peak customers in a window | normal |
 |---|---|---|---:|---:|

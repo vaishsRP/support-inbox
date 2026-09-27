@@ -137,6 +137,18 @@ def test_dated_note_covers_a_new_incident(firm):
     assert d2.handle(mail("app login fails error 403 since v2 release", day=25)).route == "refused"
 
 
+def test_old_answer_about_a_situation_is_flagged_as_possibly_stale(firm):
+    conn = connect(firm.db_path)
+    with conn:
+        conn.execute("UPDATE pairs SET answer = ? WHERE id = 3",
+                     ("We're aware of a Wi-Fi outage right now and expect it back by tonight.",))
+    conn.close()
+    d, _ = drafter(firm, js(fits=True, reply="We're aware of a Wi-Fi outage and expect it back by tonight.", uncovered=[]))
+    res = d.handle(mail("wifi not working on my flight", day=20))
+    assert "check it is still true" in res.draft
+    assert res.confidence != "high"
+
+
 def test_live_note_wins_over_an_old_answer_that_only_looks_similar(firm):
     conn = connect(firm.db_path)
     with conn:

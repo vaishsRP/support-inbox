@@ -145,7 +145,7 @@ def _build_pairs(df: pd.DataFrame, firm: Firm) -> list[tuple]:
             parts.append(last.text)
         answer_raw = " ".join(parts)
         question = clean(cust.text)
-        answer = redact(clean(answer_raw), firm.public_numbers)
+        answer = redact(clean(answer_raw, keep_urls=True), firm.public_numbers)
         if not question or not answer:
             continue
         out.append(

@@ -86,7 +86,7 @@ def _add_pair(conn, draft_row, sent_text: str, sent_at: datetime, public_numbers
     question = clean(q["text"]) if q else None
     if not question:
         return None
-    answer = redact(clean(sent_text), list(public_numbers))
+    answer = redact(clean(sent_text, keep_urls=True), list(public_numbers))
     if not answer:
         return None
     cur = conn.execute(

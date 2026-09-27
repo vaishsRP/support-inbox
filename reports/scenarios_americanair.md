@@ -1,8 +1,8 @@
 # Realistic scenarios: American Airlines (Twitter corpus stand-in)
 
-**15 of 17 checks passed.**
+**16 of 17 checks passed.**
 
-Run `scenarios-20260927-0237`. Hand-written customer messages (not from the corpus) run through the whole pipeline
+Run `scenarios-20260927-0338`. Hand-written customer messages (not from the corpus) run through the whole pipeline
 against the real answer pool and the real language model. Wording varies between runs; the checks
 look at behaviour, not exact text. Thresholds: reuse 0.93, docs 0.86 (provisional)
 
@@ -37,7 +37,7 @@ Route **refused**, closest past question 0.910. nothing close enough: best past 
 - note for the agent: looks like: Refund and upgrade request
 - note for the agent: worth asking the customer: Can you provide the booking reference or order number for the purchase you’d like to discuss?
 - note for the agent: worth asking the customer: What specific service or product are you requesting a refund or upgrade for?
-- note for the agent: worth asking the customer: When did you originally make the purchase or reservation?
+- note for the agent: worth asking the customer: When did you make the original purchase or reservation?
 
 ## PASS: nonsense question is refused, not invented
 
@@ -51,10 +51,10 @@ Route **refused**, closest past question 0.903. nothing close enough: best past 
 - note for the agent: related past thread 2527842 (0.90): "can I bring my pet fish on the plane??? This is important"
 - note for the agent: related past thread 1417654 (0.90): "Can I bring this guy with me as a carry on? [link]"
 - note for the agent: related past thread 1504385 (0.89): "hey can I bring my electric tooth brush on my carry on?"
-- note for the agent: looks like: Pet travel and carry‑on restrictions
+- note for the agent: looks like: Pet and equipment carry‑on restrictions
 - note for the agent: worth asking the customer: Are you traveling on a domestic or international flight?
 - note for the agent: worth asking the customer: What airline are you flying with, and have you checked their specific pet policy?
-- note for the agent: worth asking the customer: Will the aquarium and heat lamp meet the airline's size and safety requirements for carry‑on items?
+- note for the agent: worth asking the customer: Will the aquarium and heat lamp fit within the airline's size and weight limits for carry‑on items?
 
 ## FAIL: lost bag, the most common complaint
 
@@ -69,9 +69,9 @@ Route **refused**, closest past question 0.929. nothing close enough: best past 
 - note for the agent: related past thread 1517454 (0.92): "how is it I made it to #Arkansas on a flight delayed 45 minutes but my bag didn’t make it???"
 - note for the agent: related past thread 2814096 (0.92): "Hi, , I haven't received an update on my lost item report for several days & wasn't called back after contacting DFW air"
 - note for the agent: looks like: Delayed or missing baggage
-- note for the agent: worth asking the customer: Can you provide your baggage claim receipt or tag number?
-- note for the agent: worth asking the customer: What is your flight number and the exact date of travel?
-- note for the agent: worth asking the customer: Did you already file a missing baggage report with the airline’s baggage services desk?
+- note for the agent: worth asking the customer: Can you provide your flight number and the date of travel?
+- note for the agent: worth asking the customer: Do you have a baggage claim receipt or reference number?
+- note for the agent: worth asking the customer: Did you already report the missing bag to the airline’s baggage services desk at the airport?
 
 ## PASS: sarcasm: thanks for losing my bag
 
@@ -83,7 +83,7 @@ Route **reuse**, confidence **low**, closest past question 0.937. adapted a past
 
 ```
 [[REVIEW: delete this line once you have read the draft]]
-Please ensure you speak with our team before leaving the airport to set up a report: [link]
+Please ensure you speak with our team before leaving the airport to set up a report: https://t.co/Lts67cwTlN
 
 [[AGENT NOTE: closest past answer is from 2017-11-23 (similarity 0.94)]]
 ```
@@ -92,7 +92,7 @@ Please ensure you speak with our team before leaving the airport to set up a rep
 
 > My flight was cancelled and I want a full refund to my card today, not a voucher.
 
-Route **refused**, closest past question 0.933. nothing close enough: best past answer 0.93 (needs 0.93), best document 0.00 (needs 0.86).
+Route **refused**, closest past question 0.933. nothing that answers it: the closest past answer is about a different problem.
 
 - ✓ no unflagged commitment
 
@@ -117,9 +117,9 @@ Route **refused**, closest past question 0.913. nothing close enough: best past 
 - note for the agent: related past thread 2878453 (0.91): "muy molesta con el servicio,en el vuelo 939 de Miami a Quito me retiran la maleta de mano por falta de espacio no me dan"
 - note for the agent: related past thread 2896855 (0.89): "Alguien que me explique qué pasó con la segunda maleta de American Airlines?"
 - note for the agent: looks like: Equipaje perdido
-- note for the agent: worth asking the customer: ¿En qué aeropuerto recibió el equipaje y cuál era el número de su vuelo?
-- note for the agent: worth asking the customer: ¿Tiene a mano la etiqueta de su equipaje o el número de referencia?
-- note for the agent: worth asking the customer: ¿Ha notificado ya a la aerolínea o al personal del aeropuerto sobre la maleta?
+- note for the agent: worth asking the customer: ¿En qué aeropuerto y número de vuelo viajaste?
+- note for the agent: worth asking the customer: ¿Tienes el número de referencia del informe de equipaje perdido?
+- note for the agent: worth asking the customer: ¿Puedes describir la maleta (tamaño, color, marcas)?
 
 ## PASS: follow-up after a reply that did not help
 
@@ -134,8 +134,8 @@ Route **refused**, closest past question 0.919. nothing close enough: best past 
 - note for the agent: related past thread 1109651 (0.92): "My bag has been at Macarren since 12:07pm. No one has reached out to me."
 - note for the agent: looks like: Delayed or missing baggage
 - note for the agent: worth asking the customer: Can you provide your flight number and travel date?
-- note for the agent: worth asking the customer: Do you have a baggage claim tag number for the missing bag?
-- note for the agent: worth asking the customer: Where did you file the baggage report (airport location) and when?
+- note for the agent: worth asking the customer: Do you have a baggage claim/tag number for the missing bag?
+- note for the agent: worth asking the customer: Where did you file the initial baggage report (airport name or airline desk)?
 
 ## PASS: two questions in one message
 
@@ -148,10 +148,10 @@ Route **refused**, closest past question 0.925. nothing close enough: best past 
 - note for the agent: related past thread 1542181 (0.93): "if I use miles to upgrade, do I still get pre-upgrade miles from the flight?"
 - note for the agent: related past thread 264891 (0.92): "I fly tomorrow, my missing miles would take me to the next program level. Can it be resolved by then?"
 - note for the agent: related past thread 241478 (0.91): "Dear , my flight got delayed so I switched flights. My bags are MIA. Can you assist?"
-- note for the agent: looks like: Lost baggage and mileage upgrade inquiry
-- note for the agent: worth asking the customer: Can you provide your baggage claim receipt or tag number?
-- note for the agent: worth asking the customer: What is your flight number and date for the Boston flight where the bag was missing?
-- note for the agent: worth asking the customer: Do you have a frequent flyer account number to check mileage eligibility for the upgrade?
+- note for the agent: looks like: Lost baggage and mileage upgrade request
+- note for the agent: worth asking the customer: Can you provide your baggage claim tag number and the flight details for the missing bag?
+- note for the agent: worth asking the customer: Did you already report the missing bag to airport staff or file a lost baggage claim?
+- note for the agent: worth asking the customer: Which reservation number or ticket do you want to use miles to upgrade for your return flight?
 
 ## PASS: new incident with a dated note
 
@@ -164,18 +164,18 @@ Route **docs**, confidence **low**, closest past question 0.940. drafted from do
 
 ```
 [[REVIEW: delete this line once you have read the draft]]
-The error E‑4031 occurs with the current app version; please update to version 5.2.1 from the App Store or complete your check‑in at aa.com as a workaround [source: Check-in app error E-4031].
+The error E‑4031 occurs with the current app version; please update to version 5.2.1 from the App Store or complete your check‑in at aa.com as a workaround [source: Check‑in app error E‑4031].
 
 [[AGENT NOTE: drafted from documents, not a past answer; check the cited sources]]
 ```
 
-## FAIL: same incident without the note is refused
+## PASS: same incident without the note does not invent the workaround
 
 > The app keeps showing error E-4031 when I try to check in for my flight tomorrow.
 
 Route **reuse**, confidence **medium**, closest past question 0.940. adapted a past approved answer.
 
-- ✗ refused without the note
+- ✓ no knowledge from the retired note
 
 ```
 [[REVIEW: delete this line once you have read the draft]]

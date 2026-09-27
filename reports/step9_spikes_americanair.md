@@ -2,7 +2,20 @@
 
 36,328 customer messages from 01 Oct to 03 Dec 2017, stepping through in 6-hour windows. A spike needs at least 8 distinct customers, 3x the category's normal rate for a window and 4 standard deviations above it, measured over the previous 7 days. Category names are the suggested ones until renamed by hand.
 
-**10 spikes raised.**
+**10 category spikes, grouped into 6 incidents** (spikes overlapping in time are one incident, and one action-list row).
+
+## Incidents
+
+| opened | closed | topics | peak customers in one topic |
+|---|---|---|---:|
+| Mon 09 Oct 22:00 | Tue 10 Oct 04:00 | worst / customer / service | 28 |
+| Mon 23 Oct 22:00 | Tue 24 Oct 10:00 | link / flying / flight, link / great / view | 19 |
+| Fri 03 Nov 22:00 | Sat 04 Nov 04:00 | link / love / home | 15 |
+| Mon 06 Nov 04:00 | Mon 06 Nov 10:00 | delayed / delay / flight | 26 |
+| Mon 27 Nov 04:00 | Mon 27 Nov 10:00 | gate / minutes / sitting, flight / delayed / plane, delayed / delay / flight | 32 |
+| Wed 29 Nov 22:00 | Thu 30 Nov 10:00 | flights / flight / flying, flight / plane / link | 59 |
+
+## Every category spike
 
 | opened | closed | category | peak customers in a window | normal |
 |---|---|---|---:|---:|
