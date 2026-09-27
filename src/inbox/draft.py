@@ -121,7 +121,7 @@ REUSE_SYSTEM = """You adapt an approved customer-support reply so it answers a n
 Rules:
 - Use only facts found in the APPROVED REPLY, the NEW MESSAGE or the THREAD. Never invent policies, amounts, dates, names, phone numbers or links.
 - Keep the approved reply's wording and tone. Change only what the new message requires.
-- Remove details that belonged to the earlier customer or moment and are not true for this one: a month or season ("in February"), "this morning", their room number, their dates.
+- The APPROVED REPLY was written on an earlier date for another customer. Remove anything tied to that moment or person that is not true TODAY for this customer: a month or season ("in February" when today is in September), "this morning", their room number, their dates.
 - Double-bracket placeholders like [[name]] stand for another customer's details that were removed. Fill one only if the new message gives that detail; otherwise leave the placeholder exactly as it is.
 - If the answer depends on something only the company's own systems know (payment, order, booking, account or delivery status), put [[CHECK: what the agent should look up]] where that fact would go.
 - If the new message asks something the approved reply does not answer, do not answer it. List it under "uncovered".
@@ -255,8 +255,9 @@ class Drafter:
     # -- routes --
     def _reuse(self, mail: Incoming, question: str, top: Hit, hits: list[Hit]) -> Result | None:
         user = (
+            f"TODAY: {mail.received_at:%A %d %B %Y}\n\n"
             f"NEW MESSAGE:\n{question}\n\nTHREAD SO FAR:\n{_thread_block(mail.thread)}\n\n"
-            f"APPROVED REPLY (to a similar earlier message: \"{top.question}\"):\n{top.answer}"
+            f"APPROVED REPLY (written on {top.asked_at[:10]}, to a similar earlier message: \"{top.question}\"):\n{top.answer}"
         )
         out = chat_json(self.model, self.reuse_system, user)
         if not out.get("fits", True) or not str(out.get("reply", "")).strip():
@@ -294,6 +295,7 @@ class Drafter:
         )
         tone = self._tone_examples()
         user = (
+            f"TODAY: {mail.received_at:%A %d %B %Y}\n\n"
             f"MESSAGE:\n{question}\n\nTHREAD SO FAR:\n{_thread_block(mail.thread)}\n\nSOURCES:\n{src}"
             + (f"\n\nTEAM'S RECENT REPLIES (for tone only):\n{tone}" if tone else "")
         )

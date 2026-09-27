@@ -3,6 +3,45 @@
 What changed, when, and what prompted it. Newest first. Findings that could
 change the project's direction are marked **finding**.
 
+## 2026-09-27 (night): towards shipping
+
+The owner asked for drafts that could go out as they are, the real Gmail integration,
+and mail hygiene built rather than deferred.
+
+- **Mail hygiene is in the build again**, reversing the review's cut, because Gmail
+  delivers real email: quoted history (English, Dutch, German, French, Spanish, Outlook
+  header blocks), signatures and "Sent from my iPhone" lines, legal footers, auto-replies,
+  bounces and newsletters (never drafted), and attachments (noted, not read). Tested on
+  hand-built raw messages; the tweet corpus still cannot exercise it.
+- **Drafts are laid out as email**: greeting with the customer's first name, short
+  paragraphs, the firm's sign-off on its own lines, in the customer's language
+  (English, Dutch, German), from `email_style` in the firm config. The name comes from
+  how the customer signs off, else their display name, else a firstname.lastname
+  address; otherwise "Hi," rather than a guessed name.
+- **Only the review line and action-needed warnings stay inside a draft.** "Closest past
+  answer is from ..." and source citations moved to the dashboard: they made a ready
+  draft look unfinished.
+- **Old replies carried their moment along.** A reused heating reply said "that's no fun
+  in February" in September. Telling the model to drop such details did nothing until it
+  was also told today's date and when the old reply was written.
+- **Deadlines are computed in the firm's time zone** and stored in UTC. "Someone will
+  come today" sent at 23:30 in Amsterdam was due the next day at 01:59.
+- **Sent replies teach tone as well as content.** They were already stored as approved
+  answers; now the greeting and sign-off are stripped before storing (so the next draft
+  greets its own customer), and drafts written from documents get the team's two most
+  recent replies as tone examples. In the demo, each visitor's sent replies join their
+  own pool, so the loop can be seen: edit a reply, ask again, get your version back.
+- **Gmail is built** (`src/inbox/gmail.py`): reads new mail from the history API
+  starting from the moment it is switched on, drafts replies into the thread with the
+  right In-Reply-To and References headers, labels, replaces its own untouched draft when
+  the customer writes again but never an edited one, skips threads a person already
+  answered, captures what was sent, and drafts the morning digest to the manager. Tested
+  end to end against an in-memory fake of the Gmail API (7 tests). Not yet run against a
+  real account: that needs the owner's demo Gmail and a Google Cloud client.
+- **Demo:** action list and context page moved to small boxes at the bottom of the
+  sidebar; the no-answer view shows one reason and at most two questions; examples now
+  put a check and a promise on the action list; the assistant's status is one quiet line.
+
 ## 2026-09-27 (late)
 
 **finding: Apple Support is where reuse holds up; build on Apple.** Step 1 on Apple
