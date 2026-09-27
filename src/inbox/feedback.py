@@ -110,14 +110,14 @@ def _add_pair(conn, draft_row, sent_text: str, sent_at: datetime, public_numbers
     return cur.lastrowid
 
 
-def measures(conn: sqlite3.Connection) -> dict:
+def measures(conn: sqlite3.Connection, run: str | None = None) -> dict:
     """The spec's three numbers, as far as the stored data allows. The third one
     (commitments caught) needs a hand check on a sample; this gives the inputs."""
-    total = conn.execute("SELECT COUNT(*) FROM drafts").fetchone()[0]
-    by_route = dict(conn.execute("SELECT route, COUNT(*) FROM drafts GROUP BY route").fetchall())
+    total = conn.execute("SELECT COUNT(*) FROM drafts WHERE run IS ?", (run,)).fetchone()[0]
+    by_route = dict(conn.execute("SELECT route, COUNT(*) FROM drafts WHERE run IS ? GROUP BY route", (run,)).fetchall())
     drafted = by_route.get("reuse", 0) + by_route.get("docs", 0)
-    sims = [r[0] for r in conn.execute("SELECT edit_similarity FROM drafts WHERE edit_similarity IS NOT NULL")]
-    outcomes = dict(conn.execute("SELECT outcome, COUNT(*) FROM drafts GROUP BY outcome").fetchall())
+    sims = [r[0] for r in conn.execute("SELECT edit_similarity FROM drafts WHERE edit_similarity IS NOT NULL AND run IS ?", (run,))]
+    outcomes = dict(conn.execute("SELECT outcome, COUNT(*) FROM drafts WHERE run IS ? GROUP BY outcome", (run,)).fetchall())
     tracked = conn.execute("SELECT COUNT(*) FROM actions WHERE kind='commitment'").fetchone()[0]
     leaks = len(actions.leaked_placeholders(conn))
     sims.sort()

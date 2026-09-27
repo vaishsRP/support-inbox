@@ -53,7 +53,8 @@ CREATE TABLE IF NOT EXISTS drafts (
     sent_text       TEXT,
     sent_at         TEXT,
     edit_similarity REAL,                  -- 1 - normalised edit distance, plain text
-    outcome         TEXT NOT NULL DEFAULT 'pending'  -- pending | sent_as_is | edited | discarded
+    outcome         TEXT NOT NULL DEFAULT 'pending',  -- pending | sent_as_is | edited | discarded | no_draft
+    run             TEXT                   -- null for live mail; a replay run's name otherwise
 );
 CREATE INDEX IF NOT EXISTS drafts_thread ON drafts(thread_id);
 
@@ -99,4 +100,13 @@ def connect(path: Path) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(SCHEMA)
+    _migrate(conn)
     return conn
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Columns added after a database was first created."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(drafts)")}
+    if "run" not in cols:
+        conn.execute("ALTER TABLE drafts ADD COLUMN run TEXT")
+        conn.commit()

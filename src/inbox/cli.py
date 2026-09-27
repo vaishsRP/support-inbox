@@ -21,6 +21,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("-k", type=int, default=3)
     sub.add_parser("label", help="step 3: hand-label pairs in the terminal (resumable)")
     sub.add_parser("calibrate", help="step 3: set thresholds from the labels")
+    p = sub.add_parser("replay", help="replay the corpus through the drafter (uses the language model)")
+    p.add_argument("--per-slice", type=int, default=25)
+    p.add_argument("--slices", type=int, default=3)
+    p = sub.add_parser("categorize", help="step 9: cluster questions into suggested categories")
+    p.add_argument("-k", type=int, default=24)
+    p = sub.add_parser("spikes", help="step 9: replay spike detection over the corpus timeline")
+    p.add_argument("--window-hours", type=int, default=6)
+    sub.add_parser("digest", help="print today's digest")
     args = ap.parse_args(argv)
     firm = load_firm(args.firm)
 
@@ -48,6 +56,23 @@ def main(argv: list[str] | None = None) -> int:
         from .label import calibrate
 
         calibrate(firm)
+    elif args.cmd == "replay":
+        from .replay import run as replay
+
+        replay(firm, per_slice=args.per_slice, slices=args.slices)
+    elif args.cmd == "categorize":
+        from .categories import cluster
+
+        cluster(firm, k=args.k)
+    elif args.cmd == "spikes":
+        from .timeline import spike_report
+
+        spike_report(firm, window_hours=args.window_hours)
+    elif args.cmd == "digest":
+        from . import actions
+        from .store import connect
+
+        print(actions.digest(connect(firm.db_path), firm_name=firm.name))
     return 0
 
 

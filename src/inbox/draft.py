@@ -160,6 +160,7 @@ class Drafter:
         self.t = thresholds or Thresholds.from_firm(firm)
         self._doc_index: DocIndex | None = None
         self._doc_index_day: str | None = None
+        self.run: str | None = None   # set by a replay so its drafts stay apart from live ones
 
     def _docs(self, at: datetime) -> DocIndex:
         day = at.date().isoformat()
@@ -347,8 +348,8 @@ class Drafter:
         with self.conn:
             self.conn.execute(
                 """INSERT INTO drafts (thread_id, customer_msg_id, customer_id, created_at, route, confidence,
-                   reason, draft_text, source_pair_id, sources)
-                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                   reason, draft_text, source_pair_id, sources, run)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     mail.thread_id,
                     mail.msg_id,
@@ -360,9 +361,10 @@ class Drafter:
                     res.draft,
                     next((s["pair_id"] for s in res.sources if s.get("type") == "past_answer"), None),
                     json.dumps(res.sources),
+                    self.run,
                 ),
             )
-            if res.draft:
+            if res.draft and self.run is None:
                 actions.record_checks(self.conn, res.draft, customer_id=mail.customer_id, thread_id=mail.thread_id)
 
 
