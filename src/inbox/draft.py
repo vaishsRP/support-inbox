@@ -17,7 +17,7 @@ import json
 import re
 import sqlite3
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from . import actions
 from .config import Firm
@@ -476,9 +476,11 @@ class Drafter:
             body = texts.get(lang) or texts["en"]
             what = ", ".join(sorted({m.rule.replace("_", " ") for m in res.matches})) or "sensitive"
             who = ", ".join(sorted({m.authority for m in res.matches if m.authority})) or "a team lead"
-            res.inline.insert(0, f"ESCALATE before replying ({what}): pass this to {who}. Do not admit fault, "
-                                 "promise anything or discuss the claim. The holding reply below is safe to send "
-                                 "once it has been passed on")
+            by_id = {r.id: r for r in self.rules}
+            notes = [by_id[m.rule].note for m in res.matches if m.rule in by_id and by_id[m.rule].note]
+            res.inline.insert(0, f"ESCALATE before replying ({what}): pass this to {who}. "
+                                 + " ".join(dict.fromkeys(notes or ["Do not promise anything until they have seen it."]))
+                                 + " The holding reply below is safe to send once it has been passed on")
         elif res.route == "refused":
             asks = [n.split(": ", 1)[1] for n in res.notes if n.startswith("worth asking the customer: ")][:2]
             body = ("[[WRITE YOUR ANSWER: nothing the team wrote before, and no policy page, covers this"
@@ -543,6 +545,19 @@ class Drafter:
             )
             if res.draft and self.run is None:
                 actions.record_checks(self.conn, res.draft, customer_id=mail.customer_id, thread_id=mail.thread_id)
+            if res.route == "blocked" and self.run is None:
+                by_id = {r.id: r for r in self.rules}
+                for m in res.matches:
+                    rule = by_id.get(m.rule)
+                    if rule and rule.deadline_days is not None:
+                        due = mail.received_at + timedelta(days=rule.deadline_days)
+                        if rule.deadline_days == 0:
+                            due = mail.received_at + timedelta(hours=2)
+                        actions.add(self.conn, "check",
+                                    f"Answer the {m.rule.replace('_', ' ')} from {mail.sender_addr or mail.customer_id}",
+                                    customer_id=mail.customer_id, thread_id=mail.thread_id, due_at=due,
+                                    due_text="legal deadline" if rule.deadline_days else "urgent",
+                                    rule=m.rule, origin="escalation")
 
 
 def final_label(res: Result) -> str:

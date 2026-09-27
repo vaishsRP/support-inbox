@@ -3,6 +3,33 @@
 What changed, when, and what prompted it. Newest first. Findings that could
 change the project's direction are marked **finding**.
 
+## 2026-09-27 (evening): Gmail in daily use
+
+Lessons from running it on a real Gmail account, each fixed and tested:
+
+- **Every email gets a draft**, changing the spec's "refuse means no draft": a refusal is
+  now a frame with `[[WRITE YOUR ANSWER]]` and questions to ask (still no invented
+  answer), and a blocked email gets an escalation note plus the firm's holding reply.
+  So every email is worked the same way in Gmail. Skeletons do not count as drafted in
+  the measures, and a sent skeleton is "no draft", not an "edit".
+- **One label per email**, confidence as a sub-label; `AI/automated` renamed
+  `AI/skipped` because it read as "replies are automated".
+- **To-do list and Context and policies are editable drafts**: delete a line to close or
+  remove, type at the bottom to add. Edits are read once unchanged for a whole check;
+  each version is numbered so a stale open copy cannot close rows it never showed; a
+  page sent by mistake is read and replaced; the same edit read twice adds nothing.
+- **Gmail API facts learned the hard way**: threads cannot be fetched raw; a sent draft
+  still answers for its old id (without the DRAFT label); a sent draft's message id
+  disappears as a draft. The fake Gmail used by the tests now behaves the same way.
+- **The watcher never stalls on one bad message**, and mail moved into the inbox ("Not
+  spam") is picked up.
+- **Language detection needs real evidence**: "u" (Dutch for "you") had switched an
+  English reply to Dutch.
+- **Borrowed from similar tools**: house rules in plain language (Intercom Fin Guidance)
+  and hiding bank and card numbers from the model (Zendesk redaction).
+- **Escalations are specific**: legal threats, data requests, chargebacks, press and
+  safety each get their own advice; data requests get a to-do with the GDPR deadline.
+
 ## 2026-09-27 (night, later)
 
 - **Bug: re-importing history deleted live mail.** Both importers ran `DELETE FROM

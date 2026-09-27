@@ -240,3 +240,15 @@ def test_house_rules_reach_every_prompt(firm):
     d, _ = drafter(firm, js(fits=True, reply="Please file a report with our Baggage team.", uncovered=[]))
     d.handle(mail("My bag did not arrive in Chicago, where is my bag?"))
     assert "HOUSE RULES" in d.model.calls[0][0] and "Never promise a date for a refund." in d.model.calls[0][0]
+
+
+def test_each_escalation_gets_its_own_advice_and_data_requests_a_deadline(firm):
+    d, conn = drafter(firm, "never called")
+    res = d.handle(mail("Please delete all my personal data under the GDPR."))
+    assert "pass this to privacy officer" in res.draft and "one month" in res.draft
+    assert "admit fault" not in res.draft
+    row = conn.execute("SELECT kind, what, due_at FROM actions").fetchone()
+    assert row["kind"] == "check" and "data request" in row["what"]
+    assert row["due_at"].startswith("2017-11-09")        # received 10 Oct + 30 days
+    legal = d.handle(mail("My bag is lost and my lawyer will contact you."))
+    assert "Do not admit fault" in legal.draft

@@ -19,6 +19,7 @@ rules:
     applies_to: incoming
     action: block
     authority: legal
+    note: Do not admit fault, promise anything or discuss the claim until legal has seen it.
     patterns:
       - '\b(lawyer|attorney|solicitor|lawsuit|legal action|small claims|class action)\b'
       - '\b(sue|suing)\s+(you|them|the company|\w+)\b'
@@ -26,6 +27,8 @@ rules:
     applies_to: incoming
     action: block
     authority: privacy officer
+    note: Pass it on today. The GDPR gives one month to answer, so it is on the to-do list with that deadline.
+    deadline_days: 30
     patterns:
       - '\b(delete|erase|remove) (all )?(my|our) (personal )?(data|information|details|account)\b'
       - '\b(GDPR|CCPA|data (subject|access) request|subject access request|right to be forgotten)\b'
@@ -33,18 +36,22 @@ rules:
     applies_to: incoming
     action: block
     authority: billing lead
+    note: Do not discuss the payment or promise a refund; billing handles disputed charges.
     patterns:
       - '\b(charge ?back|dispute (the|this|that) (charge|payment)|reverse the (charge|payment) with my bank)\b'
   - id: press
     applies_to: incoming
     action: block
     authority: communications
+    note: Do not comment or confirm anything; communications answers the press.
     patterns:
       - '\b(journalist|reporter|press (inquiry|enquiry)|media (inquiry|enquiry)|for (a|my) (story|article))\b'
   - id: safety
     applies_to: incoming
     action: block
     authority: duty manager
+    note: Pass it on now, not later. If someone may be in danger, follow the safety procedure before replying.
+    deadline_days: 0
     patterns:
       - '\b(kill myself|suicid\w*|self[- ]harm|want to die|end my life)\b'
       - '\b(bomb threat|threatened (me|us|to)|assault(ed)?|sexual(ly)? harass\w*)\b'

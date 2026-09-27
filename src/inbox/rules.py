@@ -30,6 +30,8 @@ class Rule:
     patterns: list[re.Pattern]
     unless: list[re.Pattern] = field(default_factory=list)
     authority: str | None = None
+    note: str | None = None          # what the agent must know before replying (incoming rules)
+    deadline_days: int | None = None  # blocked mail that must be answered by a deadline
 
     def hit(self, sentence: str) -> bool:
         if not any(p.search(sentence) for p in self.patterns):
@@ -65,6 +67,8 @@ def load_rules(path: Path = DEFAULT_RULES) -> list[Rule]:
                 patterns=[re.compile(p, re.I) for p in r["patterns"]],
                 unless=[re.compile(p, re.I) for p in r.get("unless", [])],
                 authority=r.get("authority"),
+                note=r.get("note"),
+                deadline_days=r.get("deadline_days"),
             )
         )
     return out
