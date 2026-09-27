@@ -1,0 +1,425 @@
+# Categories for American Airlines (Twitter corpus stand-in).
+# Derived by clustering real questions (python -m inbox categorize). The names below are
+# SUGGESTED from keywords: rename each one by hand; the complaints view uses these names.
+# ids must stay as they are: they match the cluster centroids in the .npz file next to this one.
+
+categories:
+- id: 0
+  name: flights / flight / flying
+  size: 1177
+  keywords:
+  - flights
+  - flight
+  - flying
+  - ticket
+  - christmas
+  - bring
+  - travel
+  - change
+  examples:
+  - Can you by chance check if one of my flights in December is going to be affected by the glitch?
+  - Is there any chance of a free upgrade to 1st for the last leg of my trip home for my birthday? ORD>IND AA3472
+  - So am I gonna be able to avoid a cancellation fee so I can rebook my flight with another airline so I can make
+    sure I can actually get home for Christmas?
+  - So when will you tell us if our flights have been cancelled due to your scheduling issue? Don't want to trust
+    you up till the last minute only to end up strande
+  - 'Quick one, are we able to do Same Day Flight Changes on Award Tickets? #BusinessClass #ExecutivePlatinum'
+  common_causes: []
+- id: 1
+  name: people / link / service
+  size: 1091
+  keywords:
+  - people
+  - link
+  - service
+  - customer
+  - rude
+  - gate
+  - staff
+  - their
+  examples:
+  - 'Thanks for horrible #CustomerService We travel with children and your agents shows how no #compassion'
+  - 'still waiting for that crew member. People are getting restless. What are you doing AA?!? How about some #CustomerService'
+  - 'on AA 45, Seat 4A - what''s wrong with ur staff picking up trays before people (multiple) done eating. Staff
+    seems pissed #WTF'
+  - this is the worst I’ve ever seen your staff. Ticket counter to the gate desk. This is 1 way to lose a loyal
+    customer. 🛫#889
+  - '🤦‍♂️ having a computer generated voice to process the boarding process is unfriendly & hard to understand.
+    #BringBackAmerica'
+  common_causes: []
+- id: 2
+  name: great / link / flight
+  size: 1107
+  keywords:
+  - great
+  - link
+  - flight
+  - crew
+  - travel
+  - home
+  - happy
+  - awesome
+  examples:
+  - 'Thanks for a great flight and on time arrival! #travel [link]'
+  - Thanks for the ride home and the flight school, has been an awesome weekend! [link]
+  - I had a great flight from Florida to my new home San Diego ! What a great service !! Thank you so much ! [link]
+  - Thanks for a great flight back to London this morning! You guys did great!!! 🙌🏼 [link]
+  - 'thank you for getting me home! Great job! #AmericanAirlines'
+  common_causes: []
+- id: 3
+  name: flight / flights / airline
+  size: 1333
+  keywords:
+  - flight
+  - flights
+  - airline
+  - seat
+  - seats
+  - plane
+  - fly
+  - airlines
+  examples:
+  - Two flights now where I’ve paid for seat upgrade on and I get on the plane and it’s not what I paid for. Ugh.
+  - This sucks! Man my flight better not get cancelled cuz of this sh*t!!! [link]
+  - So my 7 hour flight to Hawaii has no food service, no wi-fi, and no in-flight entertainment. Last time I fly
+    !
+  - Really getting frustrated with . I booked a flight over 6 months ago with family and now all our seats are apart!
+    Not cool.
+  - Got booked on another flight (yay) turns out this flight ( ) is overbooked and I️ might not get on (much less
+    yay) 😐
+  common_causes: []
+- id: 4
+  name: link / trying / status
+  size: 922
+  keywords:
+  - link
+  - trying
+  - status
+  - miles
+  - upgrade
+  - platinum
+  - email
+  - hold
+  examples:
+  - 'why is redeeming companion certificates so hard? Over an hour on the phone? It''s 2017! #aadvantage wasting
+    your & my time'
+  - why do you list your Tokyo Haneda ticket counter opening at 13:30 on your website yet the ticket counter is
+    telling us all 16:20?
+  - Come on How long to update my qualifying mileage when I've provided you all the info you need? Ignoring emails
+    doesn't help!
+  - Why is 's Customer Service so bad...? I've been in line for an hour at MIA and it hasn't moved.
+  - Been trying to pick seats online all day. Website keeps crashing. Tried calling. 40 min. No help. Is there anything
+    you can do?
+  common_causes: []
+- id: 5
+  name: link / love / home
+  size: 625
+  keywords:
+  - link
+  - love
+  - home
+  - best
+  - great
+  - guys
+  - weekend
+  - first
+  examples:
+  - 'Thanks for upgrading us today... great start to vacation! #vacationtime #surgeryintern'
+  - '#snacks courtesy of Thanks for the hospitality! [link]'
+  - 'Happy to be back w Another friendly crew. #ThankYOU [link]'
+  - 'excited for my trip next week on AA! #followme 🤞🏼😃'
+  - 'Ready to go HOME...& celebrate CHRISTMAS!!!🎉🎄 #verygrateful #AmericanAirlines [link]'
+  common_causes: []
+- id: 6
+  name: flight / plane / link
+  size: 984
+  keywords:
+  - flight
+  - plane
+  - link
+  - seat
+  - should
+  - fly
+  - flying
+  - air
+  examples:
+  - Hey I have a Dec 23 flight and I need to be on it. This is not making me feel very happy.. [link]
+  - about to have a heat stroke on a flight right now. Thanks
+  - Coming home hopefully my flight is better than my flight out lol. 3 hours on the plane with mechanical issues
+    [link]
+  - 3times yesterday & 3x today I'm getting this error when trying to book flight...I guess you'd prefer people
+    to not use aa .com? [link]
+  - am I right in thinking there's wi-fi on my flight tomorrow?! 🤗 [link]
+  common_causes: []
+- id: 7
+  name: link / americanview / avgeek
+  size: 535
+  keywords:
+  - link
+  - americanview
+  - avgeek
+  - americanairlines
+  - skytourist
+  - miami
+  - 'off'
+  - morning
+  examples:
+  - 'Pergatory... #airtravel #airlines [link]'
+  - 'Heading home for #thanksgiving with . ✈️ -> 🦃 [link]'
+  - 'Off to next adventure #threepilots #AmericanAirlines #flight [link]'
+  - 'Relajado antes de tomar camino a #LA #AdmiralsClub 🍷 #smESPN ⚾️🎧 [link]'
+  - 'Time to find the warmth 🛫 via #AmericanView [link]'
+  common_causes: []
+- id: 8
+  name: flight / home / first
+  size: 1167
+  keywords:
+  - flight
+  - home
+  - first
+  - link
+  - fly
+  - flying
+  - last
+  - great
+  examples:
+  - Thank you for getting me on an earlier flight home to my family and the upgrade! 😬 [link]
+  - Heading home a few hours early. Thanks for fitting me on a last minute flight .
+  - Thanks for the 10 minute heads up about my flight leaving. Really needed to be reminded about the flight I’m
+    currently sitting on. [link]
+  - I've been on flights more than I've been home this month. Last night we hit a bad travel snag and they totally
+    rose to the occasion. Shit happens, but their res
+  - My last 6 hours. Thank you for a stellar flight. [link]
+  common_causes: []
+- id: 9
+  name: gate / minutes / sitting
+  size: 1136
+  keywords:
+  - gate
+  - minutes
+  - sitting
+  - plane
+  - waiting
+  - flight
+  - tarmac
+  - hour
+  examples:
+  - So has me sitting on a plane at the gate with no AC, because the gate agent decided to be late tonight... My
+    connecting flight is 7:40... It's currently 7:41
+  - Flight 4680 landed 20 minutes late and NOW we need to wait another 25 minutes because there’s no staff at our
+    gate. Thanks.
+  - made us sit for an hour leaving LGA, landed at DCA but has made us sit another hour, 10:30 now and says no gates
+    are available
+  - 'So frustrated with #AmericanAirlines. Flight finally landed 4 hours late and we still don’t have a gate. Could’ve
+    driven.'
+  - delayed over an hour, had to deplane due to a leak in the toilet and now no gate agents or plane at the new
+    gate?
+  common_causes: []
+- id: 10
+  name: great / crew / flight
+  size: 963
+  keywords:
+  - great
+  - crew
+  - flight
+  - service
+  - attendant
+  - amazing
+  - best
+  - awesome
+  examples:
+  - 'We had amazing flight attendants on AA1616 this morning!! Gate agents were super helpful too!! #friendlyskies
+    #shoutout'
+  - 'Thank you for a great flying experience! Your crew was wonderful, very attentive and polite! #AA3358 #FirstClass
+    #ORD #AA'
+  - '- please pass on my kudos to the flight attendants working AA2525 to DFW today. Some of the best service I’ve
+    seen on a flight.'
+  - the flight attendants on AA1576 LAX - ORD have been amazing. ✈️😇 super friendly and helpful. 👏🏼👏🏼👏🏼👏🏼👏🏼
+  - A HUGE shoutout to ‘s check-in crew for being so helpful on a busy post-holiday Monday. Love this airport and
+    happy to be an AA FF 😊
+  common_causes: []
+- id: 11
+  name: flight / delayed / plane
+  size: 1167
+  keywords:
+  - flight
+  - delayed
+  - plane
+  - hour
+  - delay
+  - gate
+  - hours
+  - minutes
+  examples:
+  - '#flight2328 1 hour delay. Ugh. Why are AA flights always delayed? [link]'
+  - why is there an inspection going on a flight in the middle of the day delaying my flight more than 1 hour? No
+    communication!
+  - 'why is my flight getting delayed for over 1.5 hours? I have to be in D.C. before 8 est and y''all aren''t helping
+    #Flight4275'
+  - why is every flight I take from Hawaii delayed 2+ hours with your airline? I'm not impressed at all!
+  - '- Why do you continue to have delays on all your flights?! Another 2.5 hour delay...this time on a brand new
+    787-8 Intl flight'
+  common_causes: []
+- id: 12
+  name: service / customer / helping
+  size: 701
+  keywords:
+  - service
+  - customer
+  - helping
+  - much
+  - great
+  - link
+  - team
+  - appreciate
+  examples:
+  - Shout out to for being so immensely helpful resolving my situation after I missed a flight this morning!
+  - Many thanks to customer service who helped me (here on DM) swiftly and thoroughly! 🙏🏽🙏🏽🙏🏽🙏🏽🙏🏽🙏🏽
+  - Shout out to for helping me with an issue. Thank you for the good customer service.
+  - 'Thanks for quickly resolving my TSA PreCheck issue! #greatcustomerservice [link]'
+  - 'Thanks for having my back, upgrading me to a direct flight because of delays #paystobeearly'
+  common_causes: []
+- id: 13
+  name: worst / customer / service
+  size: 952
+  keywords:
+  - worst
+  - customer
+  - service
+  - never
+  - ever
+  - experience
+  - airline
+  - fly
+  examples:
+  - never ever flying ever again! Worst experience I have ever had today and horrible customer service!
+  - Don't EVER fly . First time flying with them and it's HORRIBLE. The worst customer service I have ever experienced.
+  - NEVER AGAIN will I fly your airline! The absolute worst experience!
+  - I️ will never fly again in my entire life. Terrible customer service
+  - 'has the worst customer service I''ve ever experienced. I will never fly #AmericanAirlines ever again.'
+  common_causes: []
+- id: 14
+  name: delayed / delay / flight
+  size: 1385
+  keywords:
+  - delayed
+  - delay
+  - flight
+  - hours
+  - hour
+  - delays
+  - plane
+  - maintenance
+  examples:
+  - take us off plane for maintenance issues. Delayed 2 hrs. Put us back on same plane & delayed again for maintenance
+    issues.
+  - I️ was delayed 3 and a half hours for my first flight today and now I’m delayed an hour for my second flight.
+    Get it together
+  - 5hr flight delay. Thanks, . 😑
+  - hating on right now for delaying our LAX-SFO flight 2 hours after spending nearly a hour to get on the darn
+    commuter plane
+  - Thanks for delaying my flight an hour due to maintenance issues. Both my flights to NY delayed. Worst flight
+    experience ever.
+  common_causes: []
+- id: 15
+  name: link / flying / flight
+  size: 1086
+  keywords:
+  - link
+  - flying
+  - flight
+  - avgeek
+  - morning
+  - american
+  - dfw
+  - view
+  examples:
+  - 'DAT WING 😍😍😍. #avgeek #travel [link]'
+  - 'Great flight to #WashingtonDC today on and what a view as we landed! [link]'
+  - 'Just a little excitement this morning with after landing at DFW. #safetravels [link]'
+  - ✈️ 💞 .....DFW ✈️ [link]
+  - 'Bye bye #LosAngeles it''s been a pleasure 😏✈ #AvGeek #Aviation [link]'
+  common_causes: []
+- id: 16
+  name: paid / seat / pay
+  size: 844
+  keywords:
+  - paid
+  - seat
+  - pay
+  - ticket
+  - change
+  - customer
+  - service
+  - fee
+  examples:
+  - 'i used miles for a flight and now need to cancel yet I’m being charged $175. #WTH #poorcustomerservice'
+  - need a refund for my preferred seating charge, plane change and seat change... I didn't pay extra for this 🙄
+  - has cancelled my flights twice in a year due to mechanical issues but I have to pay $200 to change my flight.
+    Ridiculous!!!
+  - '- Trip isn’t until March and we booked our flights early. It’s wrong that others now received same flight for
+    $221. No help from customer service. Unbelievable!'
+  - 'So... I paid for a seat with extra space and when I get to the airport they say that my seat has been changed.
+    Tha hell! #16F [link]'
+  common_causes: []
+- id: 17
+  name: bag / bags / check
+  size: 949
+  keywords:
+  - bag
+  - bags
+  - check
+  - baggage
+  - checked
+  - luggage
+  - overhead
+  - carry
+  examples:
+  - 'why did you make me gate check my bag b/c there was no room? #americanAirlineLies [link]'
+  - Lost our bag,caused us to be late for flight due to search for lost bag,then charge us $150 to check 2nd bag??!
+    Unacceptable!!
+  - Hey why is it that I was an hour early for my flight and unable to check in my bag? Now I’ve missed my flight
+    because you couldn’t check my bag in? Hmmmmmmmmm
+  - why am I able to get one flight and my bag was fine but the connecting flight it's too big and I have to check
+    it!
+  - We were forced to check our bags because over full flight so we're sitting here without our bags but empty compartment.
+    Thanks [link]
+  common_causes: []
+- id: 18
+  name: link / great / view
+  size: 593
+  keywords:
+  - link
+  - great
+  - view
+  - good
+  - home
+  - beautiful
+  - morning
+  - happy
+  examples:
+  - THANK YOU 😍😍😍 [link]
+  - Thank you ! 😍 [link]
+  - Thank you ! [link]
+  - Thanks [link]
+  - Thank you [link]
+  common_causes: []
+- id: 19
+  name: flight / flights / their
+  size: 856
+  keywords:
+  - flight
+  - flights
+  - their
+  - plane
+  - flying
+  - link
+  - 'off'
+  - fly
+  examples:
+  - Replacement plane is late and the wifi is broken on the plane..... should have went with airlines.....
+  - 'Landed early on my flight, but the gate isn''t ready. #champagneproblems'
+  - 834 delayed over an hour...reminder why I never fly your airline.
+  - plane here we are delayed no agent at gate no updates supposed to fly at 609pm....
+  - disappointed on not being able to get assistance to make my flight that is currently still sitting at the gate.
+  common_causes: []

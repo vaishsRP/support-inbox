@@ -24,7 +24,7 @@ def sid(c):
 
 def test_page_and_redirect(firm):
     c = client(firm)
-    assert "Support team" in c.get("/demo").text
+    assert "Support inbox" in c.get("/demo").text
     assert c.get("/", follow_redirects=False).status_code == 307
 
 

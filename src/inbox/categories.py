@@ -197,27 +197,45 @@ def detect_spikes(
     return out
 
 
+def group_incidents(spikes: list[dict], gap: timedelta) -> list[dict]:
+    """Spikes that overlap in time are one incident.
+
+    One real incident (the iOS 11.1 "I" bug) split across eight categories, because
+    people describe it in different words. Their centroids could not be told apart
+    from unrelated spikes (all 0.94 to 0.99 on this embedding scale), so grouping is
+    by time, and the row lists every topic involved.
+    """
+    out: list[dict] = []
+    for s in sorted(spikes, key=lambda x: x["opened"]):
+        end = s.get("closed") or s["opened"] + gap
+        if out and s["opened"] <= out[-1]["closed"] + gap:
+            inc = out[-1]
+            inc["categories"].append(s["category"])
+            inc["peak"] = max(inc["peak"], s.get("peak", s.get("customers", 0)))
+            inc["closed"] = max(inc["closed"], end)
+        else:
+            out.append({"opened": s["opened"], "closed": end, "categories": [s["category"]],
+                        "peak": s.get("peak", s.get("customers", 0))})
+    return out
+
+
 def raise_spikes(
     conn: sqlite3.Connection, spikes: list[dict], names: dict, now: datetime, cfg: SpikeConfig = SpikeConfig()
 ) -> list[int]:
-    """One open action row per spiking category; spikes that have calmed are closed."""
-    open_rows = {
-        r["rule"]: r["id"]
-        for r in conn.execute("SELECT id, rule FROM actions WHERE kind='spike' AND status='open'").fetchall()
-    }
-    new = []
-    live = {f"spike:{s['category']}" for s in spikes}
-    for s in spikes:
-        key = f"spike:{s['category']}"
-        if key in open_rows:
-            continue
-        name = names.get(s["category"], str(s["category"]))
-        what = (
-            f"{s['customers']} customers about \"{name}\" in the last {cfg.window_hours}h "
-            f"(normal: about {s['normal']}). Consider a dated note on the context page."
-        )
-        new.append(actions.add(conn, "spike", what, rule=key, origin="spike", created_at=now))
-    for key, rid in open_rows.items():
-        if key not in live:
-            conn.execute("UPDATE actions SET status='done', done_at=? WHERE id=?", (now.isoformat(), rid))
-    return new
+    """One open action row per incident. Categories spiking together join the open
+    row instead of adding rows; the row closes once nothing is spiking."""
+    row = conn.execute("SELECT id, what FROM actions WHERE kind='spike' AND status='open' AND rule='spike:incident'").fetchone()
+    if not spikes:
+        if row:
+            conn.execute("UPDATE actions SET status='done', done_at=? WHERE id=?", (now.isoformat(), row["id"]))
+        return []
+    spikes = sorted(spikes, key=lambda s: -s["customers"])
+    topics = ", ".join(f"\"{names.get(s['category'], s['category'])}\" ({s['customers']}, normally {s['normal']})" for s in spikes)
+    what = (
+        f"Unusual volume in the last {cfg.window_hours}h: {topics}. "
+        "Likely one incident. Consider a dated note on the context page."
+    )
+    if row:
+        conn.execute("UPDATE actions SET what=? WHERE id=?", (what, row["id"]))
+        return []
+    return [actions.add(conn, "spike", what, rule="spike:incident", origin="spike", created_at=now)]

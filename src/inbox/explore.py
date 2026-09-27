@@ -124,7 +124,7 @@ def _examples(d: pd.DataFrame, full: pd.DataFrame, k: int = 4) -> str:
     return "\n".join(out)
 
 
-def run(firm: Firm) -> str:
+def run(firm: Firm, with_deflections: bool = True) -> str:
     conn = connect(firm.db_path)
     total = conn.execute("SELECT COUNT(*) FROM pairs").fetchone()[0]
     defl = conn.execute("SELECT COUNT(*) FROM pairs WHERE is_deflection = 1").fetchone()[0]
@@ -149,8 +149,7 @@ def run(firm: Firm) -> str:
         "| reused answer is a near copy | random answer is a near copy |\n|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"
     )
 
-    res_all = analyse(firm, include_deflections=True)
-    da = res_all["df"]
+    da = analyse(firm, include_deflections=True)["df"] if with_deflections else None
 
     report = f"""# Step 1: how repetitive is {firm.name}?
 
@@ -174,7 +173,7 @@ real one.
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 {summary(d).replace("| ", "| real answers, all messages | ", 1)}
 {summary(first).replace("| ", "| real answers, first messages only | ", 1)}
-{summary(da).replace("| ", "| including deflections (for contrast) | ", 1)}
+{summary(da).replace("| ", "| including deflections (for contrast) | ", 1) if da is not None else "| including deflections | skipped for time on this brand | | | | | | | | |"}
 
 ## Does a closer question mean a more reusable answer?
 

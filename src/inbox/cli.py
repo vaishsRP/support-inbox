@@ -15,7 +15,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--firm", default="americanair")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("import", help="load the development corpus into the firm's database")
-    sub.add_parser("explore", help="step 1: report how repetitive the corpus is")
+    p = sub.add_parser("explore", help="step 1: report how repetitive the corpus is")
+    p.add_argument("--skip-deflections", action="store_true", help="skip the slow with-deflections contrast row")
     p = sub.add_parser("retrieve", help="step 2: closest past threads for a message")
     p.add_argument("text", nargs="?", help="a new message; omit to write the eyeball report")
     p.add_argument("-k", type=int, default=3)
@@ -28,6 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("-k", type=int, default=24)
     p = sub.add_parser("spikes", help="step 9: replay spike detection over the corpus timeline")
     p.add_argument("--window-hours", type=int, default=6)
+    p.add_argument("--answered-only", action="store_true", help="count only answered messages (faster)")
     sub.add_parser("digest", help="print today's digest")
     sub.add_parser("scenarios", help="realistic end-to-end scenarios with the real model")
     args = ap.parse_args(argv)
@@ -45,7 +47,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "explore":
         from .explore import run
 
-        run(firm)
+        run(firm, with_deflections=not args.skip_deflections)
     elif args.cmd == "retrieve":
         from .retrieve import AnswerIndex, eyeball
 
@@ -73,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "spikes":
         from .timeline import spike_report
 
-        spike_report(firm, window_hours=args.window_hours)
+        spike_report(firm, window_hours=args.window_hours, answered_only=args.answered_only)
     elif args.cmd == "digest":
         from . import actions
         from .store import connect

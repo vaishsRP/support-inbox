@@ -1,0 +1,479 @@
+# Categories for Apple Support (Twitter corpus stand-in).
+# Derived by clustering real questions (python -m inbox categorize). The names below are
+# SUGGESTED from keywords: rename each one by hand; the complaints view uses these names.
+# ids must stay as they are: they match the cluster centroids in the .npz file next to this one.
+
+categories:
+- id: 0
+  name: wtf / shit / annoying
+  size: 556
+  keywords:
+  - wtf
+  - shit
+  - annoying
+  - thing
+  - fuck
+  - bullshit
+  - letter
+  - together
+  examples:
+  - wtf is up with this “ I️ “
+  - wtf with this I️??????
+  - wtf is this I️ ?!
+  - what’s up with this I️ I️ I️ I️
+  - what the fuck is THIS “ I️ “
+  common_causes: []
+- id: 1
+  name: battery / iphone / charger
+  size: 1267
+  keywords:
+  - battery
+  - iphone
+  - charger
+  - charge
+  - charging
+  - apple
+  - plus
+  - phone
+  examples:
+  - my iPhone 6 has been rapidly dropping charge & randomly shutting off 4 months, when I plug in again says it
+    has battery life?
+  - Why is my iPhone battery draining so rapidly after the update?
+  - '- I have an iPhone 6 Plus and think my battery is going. Can you help me check my battery health status?'
+  - Why does my iPhone keep restarting? More problems with in the last 3 months than in last 8 years with them smh.
+  - my iPhone 6s Plus battery percentage drops like crazy, anyway to check battery health?
+  common_causes: []
+- id: 2
+  name: que / con / meu
+  size: 1032
+  keywords:
+  - que
+  - con
+  - meu
+  - actualizaci
+  - bater
+  - ios
+  - por
+  - para
+  examples:
+  - 'La actualización de me tiene súper descontenta, solo se traba mi cel 😡 #ios11update'
+  - Actualizar mi iPhone y ahora se apaga a cada 5 minutos 😭😭😭😩😩 ¿que hago ?
+  - Muy linda y todo la actualización de iOS 11 pero me está volviendo mierda la batería, ¿ahí que ?
+  - Su actualización de IOS es del horror 😱😱😱😱 agota mi pila en menos de 2 horas y está lento el teléfono 😭😭😭😭😭😭😭😭😭😭😭😭
+    HELP
+  - Querido desde q actualice el software de mi iPhone la batería me dura menos q un pedo en una canasta! 😡😡 que
+    hago?? 😤😤
+  common_causes: []
+- id: 3
+  name: question / mark / box
+  size: 1054
+  keywords:
+  - question
+  - mark
+  - box
+  - marks
+  - boxes
+  - seeing
+  - fix
+  - shit
+  examples:
+  - Why tf am I seeing question marks in boxes 🙄😑🤦🏽‍♀️ my phone is updated...
+  - Okay wtf the question mark boxes are so annoying fix thisssss
+  - please fix the question mark boxes. 😕
+  - Why am I still seeing the A and question mark in a box. fix this shit
+  - Hey why am I️ getting question mark boxes for the letter ii?! Fix it.
+  common_causes: []
+- id: 4
+  name: fix / shit / problem
+  size: 934
+  keywords:
+  - fix
+  - shit
+  - problem
+  - situation
+  - needs
+  - thing
+  - damn
+  - bullshit
+  examples:
+  - Fix this shit I️
+  - fix this I️ I️ I️ I️ I️
+  - fix this I️ I️ I️ I️ I️
+  - fix this shit I️
+  - fix this I️ I️ I️ I️ I️ I️
+  common_causes: []
+- id: 5
+  name: ios / battery / update
+  size: 2232
+  keywords:
+  - ios
+  - battery
+  - update
+  - iphone
+  - since
+  - phone
+  - fix
+  - updated
+  examples:
+  - 'My phone keeps on crashing since I updated it 😠 #iOS11 👎🏻 #ios11update 👎🏻'
+  - iOS 11 has been horrible for me. Battery life has been terrible. Even after 11.1. 🤦🏽‍♂️🤦🏽‍♂️ Help
+  - fix your iOS 11.1 update just updated and my phones laggy asf SMH
+  - what’s going on with IOS 11, after that my iPhone is slow!!! 😡
+  - hey iOS11 is trash and my phone continues to crash, please ducking fix it
+  common_causes: []
+- id: 6
+  name: photos / icloud / iphone
+  size: 1120
+  keywords:
+  - photos
+  - icloud
+  - iphone
+  - photo
+  - storage
+  - pictures
+  - link
+  - deleted
+  examples:
+  - 'Why my #iPhone just automatically download my photo and videos somewhere and then I can’t access them no more!?
+    Wat the heck😡'
+  - it appears something has happened to my old photos in the icloud. Can you help fix this? [link]
+  - I just got a new iPhone but my pictures aren’t downloading from my old one...what do I do??
+  - Ever since getting a new iPhone, my photos do not sync to my MacBook despite iCloud being fully backed up with
+    enough storage, can anybody help?
+  - So I went through this whole process to get back into my ICloud account and all my saved content (pics/video)
+    is gone. Wtf?
+  common_causes: []
+- id: 7
+  name: way / off / turn
+  size: 1577
+  keywords:
+  - way
+  - 'off'
+  - turn
+  - apple
+  - screen
+  - link
+  - app
+  - iphone
+  examples:
+  - having a lot less battery life on my iPhone after the last update. Can you help me?
+  - I’ve had to turn all the notifications off on my phone otherwise it is turning off and on every 5 seconds -
+    so annoying! Can you help?
+  - hello, my iphone7plus keeps cutting out every few minutes and giving me this screen. Can you help? [link]
+  - Aye can we fix this? I have to unlock my phone everytime to change the song. [link]
+  - this happens everytime I go to download the exclusive Apple store app, can you help? [link]
+  common_causes: []
+- id: 8
+  name: phone / iphone / shit
+  size: 2102
+  keywords:
+  - phone
+  - iphone
+  - shit
+  - phones
+  - fucking
+  - 'off'
+  - battery
+  - apple
+  examples:
+  - My phone been bugging the fuck out all day!!! I fucking get it!!!!! The new iPhone is almost out fuck !!!!!
+    !!!! Leave me alone!!!!
+  - My phone is lagging so fucking much since I upgraded to the new iOS. fix your shit. Thank you.
+  - 😭😭😭😭😭 Me just want you guys to fix this problem. My iPhone is currently a mePhone
+  - Wth my phone keeps turning off and them on again for like 4 hours already 😩 its so annoying
+  - Ya need to fix your fkn iPhone X I’m experiencing all sort of issues with the phone First I was getting... [link]
+  common_causes: []
+- id: 9
+  name: letter / type / weird
+  size: 1591
+  keywords:
+  - letter
+  - type
+  - weird
+  - link
+  - autocorrect
+  - every
+  - into
+  - symbol
+  examples:
+  - Hey how come when I️ try and type the letter “I️” my phone corrects it to A ?
+  - Why is my phone autocorrecting the letter “I️” to a symbol!! 😤 fix this
+  - This iPhone update every time you type “I” needs to stop. “I” turns into “I️”. But why?
+  - lmk why when you type the letter I it turns into I️ that??
+  - I’m disappointed.... what’s going on why can’t I️ type the I️ letter?
+  common_causes: []
+- id: 10
+  name: ios / iphone / wifi
+  size: 1517
+  keywords:
+  - ios
+  - iphone
+  - wifi
+  - update
+  - since
+  - battery
+  - bluetooth
+  - 'off'
+  examples:
+  - Dear , why is my IOS 11 update slowing my phone down & keep turning on my WiFi & Bluetooth & changing my cellular
+    LTE off?
+  - Why has the iOS 11 update slowed my iPhone and iPad down??? 😖
+  - Why is my Bluetooth turning on by itself sporadically ever since I updated to iOS 11? It’s a bit annoying… 😓
+  - Seriously, why do you turn on Bluetooth and WiFi automatically after the iOS 11 update? This - [link] sucks.
+  - 'Is there a reason why my phone will not do the iOS 11 update still , its fuming me now 😂 #apple #ios11'
+  common_causes: []
+- id: 11
+  name: gonna / fix / fixed
+  size: 712
+  keywords:
+  - gonna
+  - fix
+  - fixed
+  - glitch
+  - problem
+  - issue
+  - fixing
+  - guys
+  examples:
+  - When are you guys going to fix this “ I️ “ problem
+  - So when are y’all going to fix this“I️ “? 🤔
+  - when are you guys going to fix this I️ problem!?
+  - when are you going to fix this “I️ “ thing?
+  - When is gonna fix this “I️” issue?
+  common_causes: []
+- id: 12
+  name: link / phone / keep
+  size: 1808
+  keywords:
+  - link
+  - phone
+  - keep
+  - 'off'
+  - iphone
+  - wifi
+  - screen
+  - turn
+  examples:
+  - can you please explain why my iPhone is doing this?? [link]
+  - why is my phone doing this?! [link]
+  - Why my phone keep doing this? [link]
+  - why is my phone doing this and how do I fix it? [link]
+  - why is my phone doing this? I️ Because I’m over it. [link]
+  common_causes: []
+- id: 13
+  name: update / updates / phone
+  size: 2036
+  keywords:
+  - update
+  - updates
+  - phone
+  - apps
+  - since
+  - app
+  - latest
+  - updated
+  examples:
+  - 'My #iphone6 can’t even keep up with my typing. SLOW. Apps crashing all the time. What’s up with these crappy
+    updates?'
+  - 'why has the latest update completely messed my phone up 😡 freezes all the time and stops me from using apps!
+    #annoying #technophobe'
+  - Dear , since I updated my phone, why have my apps keep crashing on me?
+  - Okay what’s wrong with the most recent update? My phone has completely crashed 3 times today.
+  - Omg my phone so laggy after I update to the latest iOS? why
+  common_causes: []
+- id: 14
+  name: iphone / ios / working
+  size: 2155
+  keywords:
+  - iphone
+  - ios
+  - working
+  - keeps
+  - update
+  - since
+  - screen
+  - work
+  examples:
+  - 'My phone barely functions at all since #ios11update PLEASE HELP!'
+  - My iPhone update won't work it keeps saying error occurred .. please help 😭
+  - my iphone6 keeps restarting every 2 minutes after I updated to iOS 11.1.2. Please help with this issue!
+  - my 6s touchscreen has completely stopped working two times this week... happening since I've upgraded to ios11.
+    PLEASE HELP!
+  - this keeps happening. I have the latest ios 11.1.2 , iphone 6s & yes I've tried restarting my phone. [link]
+  common_causes: []
+- id: 15
+  name: link / wtf / real
+  size: 825
+  keywords:
+  - link
+  - wtf
+  - real
+  - scam
+  - happening
+  - explain
+  - legit
+  - fake
+  examples:
+  - What is this? [link]
+  - What is this? [link]
+  - What is this? [link]
+  - what is this? [link]
+  - what is this? [link]
+  common_causes: []
+- id: 16
+  name: link / phone / app
+  size: 1299
+  keywords:
+  - link
+  - phone
+  - app
+  - apple
+  - call
+  - fix
+  - working
+  - trying
+  examples:
+  - 'My family has had so many issues with #icloud why does it have to be so hard? your support page is useless
+    #fixiCloud'
+  - My phone is not backing up to iCloud and it's making me cry. please come to my rescue 🤒
+  - My iMessage has been crashing for like over 12 hours now and I'm about to start getting dramatic about it WHYYYYY
+  - 'I am sick and tired of my apple password being disabled each time I use it #FAIL'
+  - can you help me with this.. why can't I use this app anymore it's deleted from my iphone [link]
+  common_causes: []
+- id: 17
+  name: link / fix / shit
+  size: 1122
+  keywords:
+  - link
+  - fix
+  - shit
+  - bug
+  - annoying
+  - happening
+  - glitch
+  - problem
+  examples:
+  - fix this please! [link]
+  - please fix this! [link]
+  - please fix this! [link]
+  - fix this please [link]
+  - Fix this please [link]
+  common_causes: []
+- id: 18
+  name: music / apple / songs
+  size: 1377
+  keywords:
+  - music
+  - apple
+  - songs
+  - itunes
+  - play
+  - song
+  - app
+  - library
+  examples:
+  - 'any idea why my #AppleMusic isn''t working?'
+  - Ever since I updated my phone my apple music don’t work. Wtf is the problem
+  - Hey I install the 2 new updates on my IPhone and now I can’t play songs in my , what gives?!? Help please
+  - Why isn’t my Apple Music working 🙃🤦🏼‍♂️ [link]
+  - . none of my Apple Music is playing? Stuck on 0:00 and no songs at all will play. I’ve restarted and downloaded
+    all updates.
+  common_causes: []
+- id: 19
+  name: fix / shit / glitch
+  size: 1524
+  keywords:
+  - fix
+  - shit
+  - glitch
+  - together
+  - letter
+  - tired
+  - damn
+  - fucking
+  examples:
+  - It is driving me insane that I️ can’t type “I️”. See how annoying that is. FIX IT
+  - I️ am really tired of when I️ type an I️ it changes to an I️. Please fix it .
+  - I’m really sick of this I️ shit! Fix it already.
+  - you REALLY need to fix this while “I️” bug shit. It’s SO ANNOYING
+  - please fix this “I️” shit. I’m going fucking crazy
+  common_causes: []
+- id: 20
+  name: imessage / messages / text
+  size: 821
+  keywords:
+  - imessage
+  - messages
+  - text
+  - send
+  - message
+  - notifications
+  - imessages
+  - iphone
+  examples:
+  - my phone fails to send iMessages since I’ve updated my phone? ☹️
+  - my iMessages aren’t working.. why tf is there a new problem everyday
+  - What’s wrong with my iMessage?! I can’t set it up even though I’m on LTE...
+  - been having issues sending messages all week and now iMessage won’t activate on my phone, wtf is going on
+  - my imessage isn’t working my messages are not going through i turned it off and turned it back on and its still
+    not working..
+  common_causes: []
+- id: 21
+  name: apple / email / store
+  size: 1640
+  keywords:
+  - apple
+  - email
+  - store
+  - account
+  - pay
+  - link
+  - card
+  - purchase
+  examples:
+  - plz tell me why I can’t buy a iPhone X on ur website with T-Mobile.....now I have to wait longer
+  - I'm pretty sure I'm receiving spam mail from Apple ID re purchasing ! Any ideas ?! [link]
+  - my iphone X order link from email conf takes me to a page indicating that my order does not belong to my acct!
+    Help!!
+  - my iphone x order won't take the information i gave it last night and locked me out of my account?? ok
+  - I got a reservation for iPhoneX last night, just got the email to order in 24 hours, but now my reservation
+    cant be found??
+  common_causes: []
+- id: 22
+  name: fix / glitch / problem
+  size: 1272
+  keywords:
+  - fix
+  - glitch
+  - problem
+  - issue
+  - letter
+  - annoying
+  - fixed
+  - thing
+  examples:
+  - can y’all please fix this “I️” problem!!!
+  - PLEASE fix the “ I️ “ glitch
+  - can you guys fix this “I️” problem please ☹️
+  - can you fix the “I️ “ problem please?
+  - fix the “I️” glitch please.
+  common_causes: []
+- id: 23
+  name: phone / update / since
+  size: 1886
+  keywords:
+  - phone
+  - update
+  - since
+  - updated
+  - iphone
+  - fix
+  - battery
+  - ever
+  examples:
+  - Fix this stupid ass update. My phone keeps crashing.
+  - new iOS update has bricked my phone , this sucks please fix ASAP
+  - Fix this update 😤 my phone is really messed up because of this 🙄
+  - This iOS update is making my phone crash constantly, and I am freakin over it.
+  - This new update messed up my phone my phone is slow and glitches a lot fix your shit
+  common_causes: []
