@@ -32,6 +32,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--answered-only", action="store_true", help="count only answered messages (faster)")
     sub.add_parser("digest", help="print today's digest")
     sub.add_parser("scenarios", help="realistic end-to-end scenarios with the real model")
+    sub.add_parser("gmail-auth", help="sign in to the Gmail account once (opens a browser)")
+    sub.add_parser("gmail-once", help="one pass over the Gmail inbox and sent folder")
+    p = sub.add_parser("gmail-run", help="watch the Gmail inbox; Ctrl+C to stop")
+    p.add_argument("--every", type=int, default=90, help="seconds between passes")
     args = ap.parse_args(argv)
     firm = load_firm(args.firm)
 
@@ -85,6 +89,27 @@ def main(argv: list[str] | None = None) -> int:
         from .scenarios import run as run_scenarios
 
         print(run_scenarios(firm))
+    elif args.cmd.startswith("gmail"):
+        from .gmail import Mailbox, poll_once, run_forever
+
+        if args.cmd == "gmail-auth":
+            mb = Mailbox.connect(firm, interactive=True)
+            mb.ensure_labels()
+            print(f"Signed in as {mb.me}. Labels are ready. Start with: python -m inbox --firm {firm.key} gmail-run")
+            return 0
+        from .draft import Drafter
+        from .llm import OpenAICompatible
+        from .rules import load_rules
+        from .store import connect
+
+        rules = load_rules()
+        drafter = Drafter(firm, connect(firm.db_path), OpenAICompatible(), rules)
+        if args.cmd == "gmail-once":
+            mb = Mailbox.connect(firm)
+            mb.ensure_labels()
+            print(poll_once(mb, drafter, drafter.conn, firm, rules))
+        else:
+            run_forever(firm, drafter, rules, every=args.every)
     return 0
 
 

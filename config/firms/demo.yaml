@@ -39,6 +39,10 @@ email_style:
 
 data_dir: data/demo
 
+# Gmail (optional). The address is whichever account signs in with gmail-auth.
+gmail:
+  digest_to: ""          # who gets the morning digest as a draft; empty = no digest
+
 # Provisional until labelled, like every firm starts. The demo corpus is small and
 # written in one voice, so its similarities sit higher than the Twitter corpus.
 thresholds:
