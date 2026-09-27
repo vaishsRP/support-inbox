@@ -77,8 +77,8 @@ windows points at how the dataset was collected. Treated as noise, not as eviden
 - Each visitor has a private session; notes are scoped to it; what a visitor "sends"
   never joins the shared answer pool, so nobody can plant an answer for the next visitor.
 - The page imitates Gmail's layout and colours after the first two designs were judged
-  cluttered and unintuitive by the owner. It follows Gmail's rounded shapes, which
-  overrides an earlier "no rounded corners" request; flagged to the owner.
+  cluttered and unintuitive by the owner. Corners are square throughout, at the owner's
+  choice, with Gmail's layout and colours kept.
 
 ## 2026-09-27
 
