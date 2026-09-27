@@ -34,6 +34,13 @@ class FakeGmail:
         self.added: list[tuple[int, str]] = []
 
     # ---- helpers for tests -----------------------------------------------------------
+    def team_replied(self, thread: str, body: str, to: str = "x@example.com", subject: str = "Re: x") -> str:
+        """A reply the team sent in the past, straight into the Sent folder."""
+        m = EmailMessage()
+        m["From"], m["To"], m["Subject"] = self.me, to, subject
+        m.set_content(body)
+        return self._store(f"s{next(self._ids)}", m, thread, ["SENT"])
+
     def deliver(self, *, frm: str, subject: str, body: str, thread: str | None = None, headers: dict | None = None,
                 in_reply_to: str | None = None) -> str:
         m = EmailMessage()
@@ -96,11 +103,25 @@ class _Messages:
     def __init__(self, g: FakeGmail):
         self.g = g
 
-    def list(self, userId, q="", maxResults=100):
-        return _Call(lambda: {"messages": [{"id": m} for _, m in self.g.added]})
+    def list(self, userId, q="", maxResults=100, pageToken=None, includeSpamTrash=False):
+        def run():
+            if "in:sent" in q:
+                found = [m for m in self.g.msgs.values() if "SENT" in m["labelIds"]]
+            else:
+                found = [self.g.msgs[m] for _, m in self.g.added]
+            found = sorted(found, key=lambda m: int(m["internalDate"]), reverse=True)   # newest first, like Gmail
+            return {"messages": [{"id": m["id"], "threadId": m["threadId"]} for m in found]}
+        return _Call(run)
 
     def get(self, userId, id, format="raw"):
-        return _Call(lambda: dict(self.g.msgs[id]))
+        def run():
+            if id in self.g.msgs:
+                return dict(self.g.msgs[id])
+            for d in self.g.draftbox.values():
+                if d["message"].get("id") == id:
+                    return dict(d["message"], labelIds=["DRAFT"], internalDate=d["at"])
+            raise KeyError(id)
+        return _Call(run)
 
     def modify(self, userId, id, body):
         def run():
@@ -125,7 +146,10 @@ class _Threads:
     def __init__(self, g: FakeGmail):
         self.g = g
 
-    def get(self, userId, id, format="raw"):
+    def get(self, userId, id, format="full"):
+        # Like the real API: threads cannot be fetched raw.
+        if format not in ("full", "metadata", "minimal"):
+            raise ValueError(f'Parameter "format" value "{format}" is not an allowed value')
         msgs = [dict(m) for m in self.g.msgs.values() if m["threadId"] == id]
         msgs += [dict(d["message"], labelIds=["DRAFT"], internalDate=d["at"]) for d in self.g.draftbox.values()
                  if d["message"].get("threadId") == id]

@@ -31,6 +31,20 @@ from .textclean import clean, redact
 
 REVIEW_LINE = "[[REVIEW: delete this line once you have read the draft]]"
 
+# Among past answers this close to the best one, the newest wins: policies change, and
+# an old reply should not beat a new one on a hair of similarity.
+RECENCY_BAND = 0.02
+# Facts that change when a policy changes: amounts, durations, percentages.
+_FACT = re.compile(
+    r"(?:(?:€|\beur\b)\s?\d+(?:[.,]\d+)?|\b\d+(?:[.,]\d+)?\s?(?:working days|business days|werkdagen|days?|dagen|weeks?|weken|"
+    r"months?|maanden|hours?|uur|minutes?|eur(?:os?)?|%|percent))",
+    re.I,
+)
+
+
+def facts(text: str) -> set[str]:
+    return {re.sub(r"\s+", " ", f.lower()) for f in _FACT.findall(text or "")}
+
 # Past answers that describe a situation rather than a policy go stale. Found in the
 # American Airlines replay: "we fully expect to avoid cancellations" reused weeks later.
 STATUS_CLAIM_DAYS = 3
@@ -128,6 +142,7 @@ Rules:
 - Do not promise refunds, money, compensation, exceptions, escalations or deadlines beyond what the approved reply already says.
 - Write in the language of the new message. Keep it about as short as the approved reply.
 - {framing}
+- CUSTOMER'S EARLIER CONVERSATIONS, if given, show what this customer asked and was told before, with dates. Use them to keep the story consistent, to acknowledge when they are writing again about the same thing, and never to repeat word for word what they were already told. Do not present old facts as current unless the APPROVED REPLY confirms them.
 - Decide "fits" first, strictly. It is true only if the approved reply deals with the same specific problem as the new message (same product or service, same kind of fault or request), so that a support agent would send it with small edits. Sharing a topic is not enough: a check-in app error and a passport kiosk are both "check-in" but not the same problem. If in doubt, false. When "fits" is false, leave "reply" empty.
 
 Return JSON only: {"fits": true|false, "reply": "...", "uncovered": ["..."]}"""
@@ -140,6 +155,7 @@ Rules:
 - If the answer depends on something only the company's systems know, write [[CHECK: what to look up]] instead of guessing.
 - Parts of the message the sources do not answer go under "uncovered", not in the reply.
 - Do not promise refunds, money, compensation, exceptions, escalations or deadlines.
+- CUSTOMER'S EARLIER CONVERSATIONS, if given, show what this customer asked and was told before, with dates. Keep the story consistent and acknowledge when they are writing again about the same thing; do not present old facts as current unless the SOURCES confirm them.
 - Write like the TEAM'S RECENT REPLIES: same tone, same length, same way of addressing people. Do not copy their facts.
 - Write in the language of the message. Two to four sentences.
 - {framing}
@@ -221,7 +237,11 @@ class Drafter:
 
         vec = encode([question])[0]
         sent_here = [redact(clean(t), self.firm.public_numbers) for who, t in mail.thread if who == "firm"]
-        hits = self.answers.search(vec=vec, k=3, before=mail.received_at, exclude_answers=sent_here, owner=mail.owner)
+        hits = self.answers.search(vec=vec, k=6, before=mail.received_at, exclude_answers=sent_here, owner=mail.owner)
+        if hits:
+            near = [h for h in hits if h.sim >= hits[0].sim - RECENCY_BAND]
+            newest = max(near, key=lambda h: h.asked_at)
+            hits = [newest] + [h for h in hits if h is not newest]
         doc_hits = self._docs(mail.received_at).search(vec=vec, k=3, owner=mail.owner)
         best = hits[0].sim if hits else 0.0
         best_doc = doc_hits[0].sim if doc_hits else 0.0
@@ -257,6 +277,7 @@ class Drafter:
         user = (
             f"TODAY: {mail.received_at:%A %d %B %Y}\n\n"
             f"NEW MESSAGE:\n{question}\n\nTHREAD SO FAR:\n{_thread_block(mail.thread)}\n\n"
+            f"{self._customer_context(mail)}"
             f"APPROVED REPLY (written on {top.asked_at[:10]}, to a similar earlier message: \"{top.question}\"):\n{top.answer}"
         )
         out = chat_json(self.model, self.reuse_system, user)
@@ -277,6 +298,10 @@ class Drafter:
         if uncovered:
             confidence = "medium" if confidence == "high" else confidence
             inline += [f"not answered yet: {u}" for u in uncovered]
+        changed = self._policy_change(top, hits)
+        if changed:
+            inline.append(changed)
+            confidence = "medium" if confidence == "high" else confidence
         return Result(
             route="reuse",
             confidence=confidence,
@@ -298,6 +323,7 @@ class Drafter:
             f"TODAY: {mail.received_at:%A %d %B %Y}\n\n"
             f"MESSAGE:\n{question}\n\nTHREAD SO FAR:\n{_thread_block(mail.thread)}\n\nSOURCES:\n{src}"
             + (f"\n\nTEAM'S RECENT REPLIES (for tone only):\n{tone}" if tone else "")
+            + (f"\n\n{self._customer_context(mail).strip()}" if self._customer_context(mail) else "")
         )
         out = chat_json(self.model, self.docs_system, user)
         if not out.get("fits", True) or not str(out.get("reply", "")).strip():
@@ -369,6 +395,35 @@ class Drafter:
             raise BadOutput("translation did not line up with the sentences")
         table = dict(zip(sents, english))
         return lambda s: table.get(s, s)
+
+    def _policy_change(self, top: Hit, hits: list[Hit]) -> str | None:
+        """Older replies to the same kind of question that state different facts
+        (amounts, durations) mean the policy may have changed. The newest is used; the
+        agent is told what changed and when."""
+        mine = facts(top.answer)
+        for h in hits[1:]:
+            if h.sim < top.sim - 0.05 or h.asked_at >= top.asked_at:
+                continue
+            theirs = facts(h.answer)
+            if mine and theirs and mine != theirs:
+                return (
+                    f"earlier replies said {', '.join(sorted(theirs - mine) or sorted(theirs))} ({h.asked_at[:10]}); "
+                    f"the newest says {', '.join(sorted(mine - theirs) or sorted(mine))} ({top.asked_at[:10]}). "
+                    "Used the newest: check it is the current policy"
+                )
+        return None
+
+    def _customer_context(self, mail: Incoming, n: int = 3) -> str:
+        """This customer's earlier conversations (other threads), dated, oldest first."""
+        past = actions.customer_history(self.conn, mail.customer_id, before=mail.received_at.isoformat(), limit=n + 2)
+        past = [p for p in past if p["thread_id"] != mail.thread_id][:n]
+        if not past:
+            return ""
+        lines = [
+            f"- {p['asked_at'][:10]}: they wrote \"{p['question'][:220]}\"; the team replied \"{p['answer'][:260]}\""
+            for p in reversed(past)
+        ]
+        return "CUSTOMER'S EARLIER CONVERSATIONS (oldest first):\n" + "\n".join(lines) + "\n\n"
 
     def _tone_examples(self, n: int = 2) -> str:
         """The team's most recent real replies, so a draft written from documents still

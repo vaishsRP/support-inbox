@@ -33,7 +33,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("digest", help="print today's digest")
     sub.add_parser("scenarios", help="realistic end-to-end scenarios with the real model")
     sub.add_parser("gmail-auth", help="sign in to the Gmail account once (opens a browser)")
-    sub.add_parser("gmail-once", help="one pass over the Gmail inbox and sent folder")
+    p = sub.add_parser("gmail-once", help="one pass over the Gmail inbox and sent folder")
+    p.add_argument("--catch-up-hours", type=int, default=None, help="also handle inbox mail from the last N hours")
+    p = sub.add_parser("gmail-import", help="read the mailbox's past correspondence into the knowledge base")
+    p.add_argument("--months", type=int, default=12)
     p = sub.add_parser("gmail-run", help="watch the Gmail inbox; Ctrl+C to stop")
     p.add_argument("--every", type=int, default=90, help="seconds between passes")
     args = ap.parse_args(argv)
@@ -104,10 +107,16 @@ def main(argv: list[str] | None = None) -> int:
 
         rules = load_rules()
         drafter = Drafter(firm, connect(firm.db_path), OpenAICompatible(), rules)
+        if args.cmd == "gmail-import":
+            from .history import import_mailbox
+
+            mb = Mailbox.connect(firm)
+            import_mailbox(mb, drafter.conn, firm, months=args.months, pause=0.05)
+            return 0
         if args.cmd == "gmail-once":
             mb = Mailbox.connect(firm)
             mb.ensure_labels()
-            print(poll_once(mb, drafter, drafter.conn, firm, rules))
+            print(poll_once(mb, drafter, drafter.conn, firm, rules, catch_up_hours=args.catch_up_hours))
         else:
             run_forever(firm, drafter, rules, every=args.every)
     return 0

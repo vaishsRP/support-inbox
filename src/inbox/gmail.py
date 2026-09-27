@@ -105,10 +105,13 @@ class Mailbox:
             try:
                 ids, page, latest = [], None, since_history
                 while True:
-                    r = users.history().list(userId="me", startHistoryId=since_history, historyTypes=["messageAdded"],
-                                             labelId="INBOX", pageToken=page).execute()
+                    # New mail, and mail moved into the inbox (for example "Not spam").
+                    r = users.history().list(userId="me", startHistoryId=since_history,
+                                             historyTypes=["messageAdded", "labelAdded"], labelId="INBOX",
+                                             pageToken=page).execute()
                     for h in r.get("history", []):
                         ids += [a["message"]["id"] for a in h.get("messagesAdded", [])]
+                        ids += [a["message"]["id"] for a in h.get("labelsAdded", []) if "INBOX" in a.get("labelIds", [])]
                     latest = str(r.get("historyId", latest))
                     page = r.get("nextPageToken")
                     if not page:
@@ -119,15 +122,32 @@ class Mailbox:
         r = users.messages().list(userId="me", q="in:inbox newer_than:1d", maxResults=100).execute()
         return [m["id"] for m in r.get("messages", [])], self.history_id()
 
+    def sent_thread_ids(self, days: int) -> list[str]:
+        """Conversations the team replied in, oldest first (for importing history)."""
+        ids, page = [], None
+        while True:
+            r = self._svc.users().messages().list(userId="me", q=f"in:sent newer_than:{int(days)}d",
+                                                  maxResults=500, pageToken=page).execute()
+            ids += [m["threadId"] for m in r.get("messages", [])]
+            page = r.get("nextPageToken")
+            if not page:
+                return list(dict.fromkeys(reversed(ids)))   # the API lists newest first
+
+    def recent_inbox_ids(self, hours: int) -> list[str]:
+        r = self._svc.users().messages().list(userId="me", q=f"in:inbox newer_than:{int(hours)}h", maxResults=100).execute()
+        return [m["id"] for m in r.get("messages", [])]
+
     def get(self, msg_id: str) -> tuple[Mail, dict]:
         r = self._svc.users().messages().get(userId="me", id=msg_id, format="raw").execute()
         return parse(base64.urlsafe_b64decode(r["raw"])), r
 
     def thread(self, thread_id: str) -> list[dict]:
-        r = self._svc.users().threads().get(userId="me", id=thread_id, format="raw").execute()
+        # threads.get has no raw format: list the thread's messages, then fetch each one raw.
+        r = self._svc.users().threads().get(userId="me", id=thread_id, format="minimal").execute()
         out = []
         for m in r.get("messages", []):
-            mail = parse(base64.urlsafe_b64decode(m["raw"]))
+            full = self._svc.users().messages().get(userId="me", id=m["id"], format="raw").execute()
+            mail = parse(base64.urlsafe_b64decode(full["raw"]))
             out.append({"id": m["id"], "labels": m.get("labelIds", []), "at": int(m["internalDate"]), "mail": mail})
         return sorted(out, key=lambda x: x["at"])
 
@@ -201,10 +221,14 @@ def _state(conn: sqlite3.Connection, key: str, value: str | None = None) -> str 
 
 
 def poll_once(mb: Mailbox, drafter: Drafter, conn: sqlite3.Connection, firm: Firm, rules: list[Rule],
-              log=print) -> PassReport:
+              log=print, catch_up_hours: int | None = None) -> PassReport:
+    """One pass. `catch_up_hours` also handles inbox mail from the last N hours that
+    arrived before the watcher's starting point (used once, by hand)."""
     conn.executescript(STATE_SCHEMA)
     rep = PassReport()
     ids, latest = mb.new_inbox_ids(_state(conn, "history_id"))
+    if catch_up_hours:
+        ids = list(dict.fromkeys(mb.recent_inbox_ids(catch_up_hours) + ids))
     for msg_id in ids:
         if conn.execute("SELECT 1 FROM gmail_threads WHERE message_id = ?", (msg_id,)).fetchone():
             continue   # already handled: restarts never process a mail twice
@@ -320,6 +344,7 @@ def run_forever(firm: Firm, drafter: Drafter, rules: list[Rule], every: int = 90
     mb = Mailbox.connect(firm)
     mb.ensure_labels()
     conn = drafter.conn
+    conn.executescript(STATE_SCHEMA)
     log(f"[gmail] watching {mb.me} every {every}s. Ctrl+C to stop.")
     last_digest = _state(conn, "digest_day") if conn else None
     while True:

@@ -124,3 +124,28 @@ def test_thread_a_person_already_answered_is_skipped(box):
     g._store("human1", reply_msg, g.msgs[mid]["threadId"], ["SENT"])
     r = poll(box)
     assert r.skipped == 1 and g.draftbox == {}
+
+
+def test_watcher_starts_on_a_fresh_database(firm, monkeypatch):
+    # Found on the first live run: the watcher read its saved position before the table existed.
+    import inbox.gmail as gm
+
+    g = fake_service()
+    monkeypatch.setattr(gm.Mailbox, "connect", classmethod(lambda cls, f, interactive=False: gm.Mailbox(g, g.me)))
+    monkeypatch.setattr(gm.time, "sleep", lambda s: (_ for _ in ()).throw(KeyboardInterrupt))
+    conn = connect(firm.db_path)
+    with pytest.raises(KeyboardInterrupt):
+        gm.run_forever(firm, Drafter(firm, conn, StubModel(reply), RULES), RULES, every=1, log=QUIET)
+
+
+def test_catch_up_handles_mail_from_before_the_starting_point(firm):
+    firm.raw["email_style"] = STYLE
+    g = fake_service()
+    g.deliver(frm="Lina <lina@example.com>", subject="bag", body="My bag did not arrive in Chicago, where is my bag?")
+    mb = Mailbox(g, g.me)
+    mb.ensure_labels()
+    conn = connect(firm.db_path)
+    d = Drafter(firm, conn, StubModel(reply), RULES)
+    assert poll_once(mb, d, conn, firm, RULES, log=QUIET).drafted == 0          # starts from now
+    assert poll_once(mb, d, conn, firm, RULES, log=QUIET, catch_up_hours=3).drafted == 1
+    assert poll_once(mb, d, conn, firm, RULES, log=QUIET, catch_up_hours=3).drafted == 0   # never twice
